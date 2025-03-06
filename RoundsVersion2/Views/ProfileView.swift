@@ -4,43 +4,63 @@ struct ProfileView: View {
     @EnvironmentObject private var mainViewModel: MainViewModel
     
     var body: some View {
-        NavigationView {
-            VStack(spacing: 20) {
+        NavigationStack {
+            List {
                 // Profile Header
-                VStack {
-                    Text(mainViewModel.userProfile?.initials ?? "??")
-                        .font(.system(size: 40))
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .frame(width: 100, height: 100)
-                        .background(Color.green)
-                        .clipShape(Circle())
-                    
-                    Text(mainViewModel.userProfile?.fullName ?? "Loading...")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                    
-                    Text(mainViewModel.userProfile?.email ?? "")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
+                Section {
+                    VStack(spacing: 15) {
+                        Text(mainViewModel.userProfile?.initials ?? "??")
+                            .font(.system(size: 40))
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .frame(width: 100, height: 100)
+                            .background(Color.green)
+                            .clipShape(Circle())
+                        
+                        Text(mainViewModel.userProfile?.fullName ?? "Loading...")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                        
+                        Text(mainViewModel.userProfile?.email ?? "")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical)
                 }
-                .padding()
                 
-                // Stats Card
-                VStack(spacing: 15) {
+                // Stats Section
+                Section("Stats") {
                     StatRow(title: "ELO Rating", value: "\(mainViewModel.userProfile?.elo ?? 1200)")
-                    Divider()
                     StatRow(title: "Matches Played", value: "0") // TODO: Implement
-                    Divider()
                     StatRow(title: "Win Rate", value: "0%") // TODO: Implement
                 }
-                .padding()
-                .background(Color(.systemBackground))
-                .cornerRadius(12)
-                .shadow(radius: 2)
-                .padding(.horizontal)
                 
-                Spacer()
+                // Admin Section (only shown for admin users)
+                if mainViewModel.userProfile?.isAdmin == true {
+                    Section {
+                        NavigationLink {
+                            AdminView()
+                        } label: {
+                            Label("Admin Panel", systemImage: "gear")
+                        }
+                    } header: {
+                        Text("Administration")
+                    } footer: {
+                        Text("Access to administrative functions")
+                    }
+                }
+                
+                // Sign Out Section
+                Section {
+                    Button(role: .destructive) {
+                        Task {
+                            await mainViewModel.signOut()
+                        }
+                    } label: {
+                        Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
+                    }
+                }
             }
             .navigationTitle("Profile")
         }
