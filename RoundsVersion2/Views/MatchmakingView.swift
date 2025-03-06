@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseFirestore
+import FirebaseAuth
 
 struct MatchmakingView: View {
     @StateObject private var viewModel = MatchmakingViewModel()
