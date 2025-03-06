@@ -9,12 +9,36 @@ class MatchViewModel: ObservableObject {
     @Published var messages: [ChatMessage] = []
     @Published var messageText = ""
     @Published var errorMessage: String?
+    @Published var currentUserProfile: UserProfile?
     
     private var messagesListener: ListenerRegistration?
     
     init(matchId: String) {
         self.matchId = matchId
         setupMessagesListener()
+        fetchCurrentUserProfile()
+    }
+    
+    private func fetchCurrentUserProfile() {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        let db = Firestore.firestore()
+        
+        Task {
+            do {
+                let doc = try await db.collection("users").document(userId).getDocument()
+                if let data = doc.data() {
+                    self.currentUserProfile = UserProfile(
+                        id: userId,
+                        fullName: data["fullName"] as? String ?? "",
+                        email: data["email"] as? String ?? "",
+                        elo: data["elo"] as? Int ?? 1200,
+                        createdAt: (data["createdAt"] as? Timestamp)?.dateValue() ?? Date()
+                    )
+                }
+            } catch {
+                self.errorMessage = error.localizedDescription
+            }
+        }
     }
     
     private func setupMessagesListener() {

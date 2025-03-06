@@ -8,6 +8,8 @@ class MainViewModel: ObservableObject {
     @Published var userProfile: UserProfile?
     @Published var errorMessage: String?
     
+    private var authStateHandler: AuthStateDidChangeListenerHandle?
+    
     init() {
         setupAuthStateListener()
         if let user = Auth.auth().currentUser {
@@ -16,13 +18,19 @@ class MainViewModel: ObservableObject {
     }
     
     private func setupAuthStateListener() {
-        Auth.auth().addStateDidChangeListener { [weak self] _, user in
+        authStateHandler = Auth.auth().addStateDidChangeListener { [weak self] _, user in
             self?.currentUser = user
             if let userId = user?.uid {
                 self?.fetchUserProfile(userId: userId)
             } else {
                 self?.userProfile = nil
             }
+        }
+    }
+    
+    deinit {
+        if let handler = authStateHandler {
+            Auth.auth().removeStateDidChangeListener(handler)
         }
     }
     

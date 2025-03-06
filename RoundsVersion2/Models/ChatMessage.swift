@@ -1,7 +1,8 @@
 import Foundation
 import FirebaseFirestore
+import FirebaseAuth
 
-struct ChatMessage: Identifiable, Codable {
+struct ChatMessage: Identifiable, Codable, Equatable {
     let id: String
     let senderId: String
     let text: String
@@ -31,5 +32,12 @@ struct ChatMessage: Identifiable, Codable {
         self.senderId = senderId
         self.text = text
         self.timestamp = timestamp
+    }
+    
+    static func == (lhs: ChatMessage, rhs: ChatMessage) -> Bool {
+        lhs.id == rhs.id &&
+        lhs.senderId == rhs.senderId &&
+        lhs.text == rhs.text &&
+        lhs.timestamp == rhs.timestamp
     }
 } 

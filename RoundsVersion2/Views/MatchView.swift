@@ -17,18 +17,68 @@ struct MatchView: View {
         VStack(spacing: 0) {
             // Match Header
             VStack(spacing: 15) {
-                OpponentProfileCard(opponent: opponent)
+                // Players Section
+                HStack(spacing: 20) {
+                    if let currentUser = viewModel.currentUserProfile {
+                        VStack {
+                            OpponentProfileCard(opponent: currentUser)
+                            Text("You")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+                        }
+                    }
+                    
+                    Text("VS")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.gray)
+                    
+                    VStack {
+                        OpponentProfileCard(opponent: opponent)
+                        Text("Opponent")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                    }
+                }
+                .padding(.vertical)
                 
-                Button {
-                    // TODO: Implement match completion
-                } label: {
-                    Text("End Match")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.red)
-                        .cornerRadius(10)
+                // Buttons Section
+                VStack(spacing: 12) {
+                    Button {
+                        // TODO: Implement golf course selection
+                    } label: {
+                        Text("Select Golf Course")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.green)
+                            .cornerRadius(10)
+                    }
+                    
+                    Button {
+                        // TODO: Implement score verification
+                    } label: {
+                        Text("Verify Score")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.blue)
+                            .cornerRadius(10)
+                    }
+                    
+                    Button {
+                        // TODO: Implement match completion
+                    } label: {
+                        Text("End Match")
+                            .font(.subheadline)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 30)
+                            .padding(.vertical, 8)
+                            .background(Color.red)
+                            .cornerRadius(8)
+                    }
                 }
                 .padding(.horizontal)
             }
@@ -47,8 +97,8 @@ struct MatchView: View {
                         }
                         .padding()
                     }
-                    .onChange(of: viewModel.messages.count) { _ in
-                        if let lastMessage = viewModel.messages.last {
+                    .onChange(of: viewModel.messages) { _, messages in
+                        if let lastMessage = messages.last {
                             withAnimation {
                                 proxy.scrollTo(lastMessage.id, anchor: .bottom)
                             }

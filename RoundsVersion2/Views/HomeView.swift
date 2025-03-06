@@ -4,7 +4,7 @@ struct HomeView: View {
     @StateObject private var viewModel = HomeViewModel()
     @EnvironmentObject private var mainViewModel: MainViewModel
     @State private var isShowingMatchmaking = false
-    @State private var activeMatch: (id: String, opponent: UserProfile)? = nil
+    @State private var activeMatch: ActiveMatch? = nil
     
     var body: some View {
         NavigationView {
@@ -75,11 +75,10 @@ struct HomeView: View {
     }
 }
 
-// Make the tuple conform to Identifiable for sheet presentation
-extension Optional: Identifiable where Wrapped == (id: String, opponent: UserProfile) {
-    public var id: String? {
-        self?.id
-    }
+// Create a proper Identifiable type for active matches
+struct ActiveMatch: Identifiable {
+    let id: String
+    let opponent: UserProfile
 }
 
 struct MatchRow: View {
