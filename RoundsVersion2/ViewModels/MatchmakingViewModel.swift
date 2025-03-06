@@ -343,27 +343,7 @@ class MatchmakingViewModel: ObservableObject {
     }
 }
 
-// Make all data types Sendable
-struct MatchmakingData: Sendable {
-    let minEloMatch: Int
-    let maxEloMatch: Int
-    let status: String
-    let timestamp: FieldValue
-    let userId: String
-    let elo: Int
-    
-    var asDictionary: [String: Any] {
-        [
-            "minEloMatch": minEloMatch,
-            "maxEloMatch": maxEloMatch,
-            "status": status,
-            "timestamp": timestamp,
-            "userId": userId,
-            "elo": elo
-        ]
-    }
-}
-
+// MARK: - Data Models
 struct MatchData: Sendable {
     let players: [String]
     let status: String

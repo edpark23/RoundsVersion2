@@ -14,30 +14,4 @@ struct Match: Identifiable, Codable {
         }
         return "\(eloChange)"
     }
-}
-
-struct MatchData {
-    let players: [String]
-    let status: String
-    let timestamp: FieldValue
-    
-    var asDictionary: [String: Any] {
-        [
-            "players": players,
-            "status": status,
-            "timestamp": timestamp
-        ]
-    }
-}
-
-struct StatusData {
-    let status: String
-    let matchId: String
-    
-    var asDictionary: [String: Any] {
-        [
-            "status": status,
-            "matchId": matchId
-        ]
-    }
 } 
