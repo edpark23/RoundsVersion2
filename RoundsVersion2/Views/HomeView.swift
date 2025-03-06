@@ -3,6 +3,8 @@ import SwiftUI
 struct HomeView: View {
     @StateObject private var viewModel = HomeViewModel()
     @EnvironmentObject private var mainViewModel: MainViewModel
+    @State private var isShowingMatchmaking = false
+    @State private var activeMatch: (id: String, opponent: UserProfile)? = nil
     
     var body: some View {
         NavigationView {
@@ -37,7 +39,7 @@ struct HomeView: View {
                 
                 // New Match Button
                 Button {
-                    // TODO: Start new match
+                    isShowingMatchmaking = true
                 } label: {
                     HStack {
                         Image(systemName: "plus.circle.fill")
@@ -51,6 +53,9 @@ struct HomeView: View {
                     .cornerRadius(10)
                 }
                 .padding(.horizontal)
+                .sheet(isPresented: $isShowingMatchmaking) {
+                    MatchmakingView()
+                }
                 
                 // Recent Matches List
                 List {
@@ -61,7 +66,19 @@ struct HomeView: View {
                 .listStyle(PlainListStyle())
             }
             .navigationTitle("Home")
+            .sheet(item: $activeMatch) { match in
+                NavigationView {
+                    MatchView(matchId: match.id, opponent: match.opponent)
+                }
+            }
         }
+    }
+}
+
+// Make the tuple conform to Identifiable for sheet presentation
+extension Optional: Identifiable where Wrapped == (id: String, opponent: UserProfile) {
+    public var id: String? {
+        self?.id
     }
 }
 
