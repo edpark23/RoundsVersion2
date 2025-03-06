@@ -113,25 +113,32 @@ class MatchViewModel: ObservableObject {
                 (currentUser.id, opponent.id) : 
                 (opponent.id, currentUser.id)
             
-            // Update match document with results
-            try await db.collection("matches").document(matchId).updateData([
+            // Create immutable dictionaries for Firestore updates
+            let matchUpdateData: [String: Any] = [
                 "status": "completed",
                 "winner": winnerId,
                 "loser": loserId,
                 "completedAt": FieldValue.serverTimestamp(),
                 "winnerEloChange": currentPlayerWon ? (winnerNewElo - currentUser.elo) : (winnerNewElo - opponent.elo),
                 "loserEloChange": currentPlayerWon ? (loserNewElo - opponent.elo) : (loserNewElo - currentUser.elo)
-            ])
+            ]
+            
+            let winnerUpdateData: [String: Any] = [
+                "elo": winnerNewElo
+            ]
+            
+            let loserUpdateData: [String: Any] = [
+                "elo": loserNewElo
+            ]
+            
+            // Update match document with results
+            try await db.collection("matches").document(matchId).updateData(matchUpdateData)
             
             // Update winner's ELO
-            try await db.collection("users").document(winnerId).updateData([
-                "elo": currentPlayerWon ? winnerNewElo : winnerNewElo
-            ])
+            try await db.collection("users").document(winnerId).updateData(winnerUpdateData)
             
             // Update loser's ELO
-            try await db.collection("users").document(loserId).updateData([
-                "elo": currentPlayerWon ? loserNewElo : loserNewElo
-            ])
+            try await db.collection("users").document(loserId).updateData(loserUpdateData)
             
             // Update local state
             matchStatus = .completed(winner: winnerId, loser: loserId)
@@ -145,10 +152,12 @@ class MatchViewModel: ObservableObject {
         let db = Firestore.firestore()
         
         do {
-            try await db.collection("matches").document(matchId).updateData([
+            let cancelUpdateData: [String: Any] = [
                 "status": "cancelled",
                 "cancelledAt": FieldValue.serverTimestamp()
-            ])
+            ]
+            
+            try await db.collection("matches").document(matchId).updateData(cancelUpdateData)
             
             matchStatus = .cancelled
             
