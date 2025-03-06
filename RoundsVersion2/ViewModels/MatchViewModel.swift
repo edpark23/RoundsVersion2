@@ -5,16 +5,25 @@ import FirebaseAuth
 @MainActor
 class MatchViewModel: ObservableObject {
     let matchId: String
+    let opponent: UserProfile
     
     @Published var messages: [ChatMessage] = []
     @Published var messageText = ""
     @Published var errorMessage: String?
     @Published var currentUserProfile: UserProfile?
+    @Published var matchStatus: MatchStatus = .inProgress
     
     private var messagesListener: ListenerRegistration?
     
-    init(matchId: String) {
+    enum MatchStatus {
+        case inProgress
+        case completed(winner: String, loser: String)
+        case cancelled
+    }
+    
+    init(matchId: String, opponent: UserProfile) {
         self.matchId = matchId
+        self.opponent = opponent
         setupMessagesListener()
         fetchCurrentUserProfile()
     }
@@ -31,7 +40,7 @@ class MatchViewModel: ObservableObject {
                         id: userId,
                         fullName: data["fullName"] as? String ?? "",
                         email: data["email"] as? String ?? "",
-                        elo: data["elo"] as? Int ?? 1200,
+                        elo: data["elo"] as? Int ?? EloCalculator.initialElo,
                         createdAt: (data["createdAt"] as? Timestamp)?.dateValue() ?? Date()
                     )
                 }
@@ -80,6 +89,71 @@ class MatchViewModel: ObservableObject {
             } catch {
                 errorMessage = error.localizedDescription
             }
+        }
+    }
+    
+    func completeMatch(currentPlayerWon: Bool) async {
+        guard let currentUser = currentUserProfile else {
+            errorMessage = "Current user profile not loaded"
+            return
+        }
+        
+        let db = Firestore.firestore()
+        
+        do {
+            // Calculate new ELO ratings
+            let (winnerNewElo, loserNewElo) = EloCalculator.updateRatings(
+                player1Rating: currentUser.elo,
+                player2Rating: opponent.elo,
+                player1Result: currentPlayerWon ? .win : .loss
+            )
+            
+            // Determine winner and loser
+            let (winnerId, loserId) = currentPlayerWon ? 
+                (currentUser.id, opponent.id) : 
+                (opponent.id, currentUser.id)
+            
+            // Update match document with results
+            try await db.collection("matches").document(matchId).updateData([
+                "status": "completed",
+                "winner": winnerId,
+                "loser": loserId,
+                "completedAt": FieldValue.serverTimestamp(),
+                "winnerEloChange": currentPlayerWon ? (winnerNewElo - currentUser.elo) : (winnerNewElo - opponent.elo),
+                "loserEloChange": currentPlayerWon ? (loserNewElo - opponent.elo) : (loserNewElo - currentUser.elo)
+            ])
+            
+            // Update winner's ELO
+            try await db.collection("users").document(winnerId).updateData([
+                "elo": currentPlayerWon ? winnerNewElo : winnerNewElo
+            ])
+            
+            // Update loser's ELO
+            try await db.collection("users").document(loserId).updateData([
+                "elo": currentPlayerWon ? loserNewElo : loserNewElo
+            ])
+            
+            // Update local state
+            matchStatus = .completed(winner: winnerId, loser: loserId)
+            
+        } catch {
+            errorMessage = "Failed to complete match: \(error.localizedDescription)"
+        }
+    }
+    
+    func cancelMatch() async {
+        let db = Firestore.firestore()
+        
+        do {
+            try await db.collection("matches").document(matchId).updateData([
+                "status": "cancelled",
+                "cancelledAt": FieldValue.serverTimestamp()
+            ])
+            
+            matchStatus = .cancelled
+            
+        } catch {
+            errorMessage = "Failed to cancel match: \(error.localizedDescription)"
         }
     }
     

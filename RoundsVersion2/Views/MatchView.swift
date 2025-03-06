@@ -6,11 +6,14 @@ struct MatchView: View {
     let opponent: UserProfile
     @StateObject private var viewModel: MatchViewModel
     @Environment(\.dismiss) private var dismiss
+    @State private var showingEndMatchConfirmation = false
+    @State private var showingMatchEndedAlert = false
+    @State private var matchEndAlertMessage = ""
     
     init(matchId: String, opponent: UserProfile) {
         self.matchId = matchId
         self.opponent = opponent
-        _viewModel = StateObject(wrappedValue: MatchViewModel(matchId: matchId))
+        _viewModel = StateObject(wrappedValue: MatchViewModel(matchId: matchId, opponent: opponent))
     }
     
     var body: some View {
@@ -69,7 +72,7 @@ struct MatchView: View {
                     }
                     
                     Button {
-                        // TODO: Implement match completion
+                        showingEndMatchConfirmation = true
                     } label: {
                         Text("End Match")
                             .font(.subheadline)
@@ -143,6 +146,49 @@ struct MatchView: View {
                 }
             }
         }
+        .confirmationDialog("End Match", isPresented: $showingEndMatchConfirmation) {
+            Button("I Won") {
+                Task {
+                    await viewModel.completeMatch(currentPlayerWon: true)
+                    showMatchEndedAlert(won: true)
+                }
+            }
+            Button("I Lost") {
+                Task {
+                    await viewModel.completeMatch(currentPlayerWon: false)
+                    showMatchEndedAlert(won: false)
+                }
+            }
+            Button("Cancel Match", role: .destructive) {
+                Task {
+                    await viewModel.cancelMatch()
+                    dismiss()
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("How did the match end?")
+        }
+        .alert("Match Ended", isPresented: $showingMatchEndedAlert) {
+            Button("OK") {
+                dismiss()
+            }
+        } message: {
+            Text(matchEndAlertMessage)
+        }
+    }
+    
+    private func showMatchEndedAlert(won: Bool) {
+        switch viewModel.matchStatus {
+        case .completed(winner: let winnerId, loser: _):
+            let playerWon = (won && winnerId == viewModel.currentUserProfile?.id) || (!won && winnerId == opponent.id)
+            matchEndAlertMessage = playerWon ? "Congratulations on your win! Your ELO has been updated." : "Better luck next time! Your ELO has been updated."
+        case .cancelled:
+            matchEndAlertMessage = "The match was cancelled."
+        case .inProgress:
+            matchEndAlertMessage = "There was an error completing the match."
+        }
+        showingMatchEndedAlert = true
     }
 }
 
@@ -178,7 +224,7 @@ struct ChatBubble: View {
                 id: "preview",
                 fullName: "John Doe",
                 email: "john@example.com",
-                elo: 1200,
+                elo: EloCalculator.initialElo,
                 createdAt: Date()
             )
         )

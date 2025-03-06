@@ -42,7 +42,7 @@ class SignUpViewModel: ObservableObject {
                 "fullName": fullName,
                 "email": email,
                 "createdAt": Date(),
-                "elo": 1200
+                "elo": EloCalculator.initialElo
             ])
             
             isAuthenticated = true
