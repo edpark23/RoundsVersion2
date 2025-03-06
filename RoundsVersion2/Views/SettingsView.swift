@@ -1,9 +1,11 @@
 import SwiftUI
+import FirebaseAuth
 
 struct SettingsView: View {
     @EnvironmentObject private var mainViewModel: MainViewModel
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @AppStorage("darkModeEnabled") private var darkModeEnabled = false
+    @StateObject private var viewModel = LoginViewModel()
     
     var body: some View {
         NavigationView {
@@ -27,11 +29,23 @@ struct SettingsView: View {
                     }
                 }
                 
+                // Admin Section (only shown for admin users)
+                if mainViewModel.userProfile?.isAdmin == true {
+                    Section(header: Text("Administration"), footer: Text("Access to administrative functions")) {
+                        NavigationLink {
+                            AdminView()
+                        } label: {
+                            Label("Admin Panel", systemImage: "shield.fill")
+                        }
+                    }
+                }
+                
                 Section {
-                    Button(role: .destructive) {
-                        mainViewModel.signOut()
-                    } label: {
-                        Text("Sign Out")
+                    Button(action: {
+                        viewModel.signOut()
+                    }) {
+                        Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
+                            .foregroundColor(.red)
                     }
                 }
             }

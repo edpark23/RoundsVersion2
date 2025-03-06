@@ -32,7 +32,8 @@ class MatchViewModel: ObservableObject {
                         fullName: data["fullName"] as? String ?? "",
                         email: data["email"] as? String ?? "",
                         elo: data["elo"] as? Int ?? 1200,
-                        createdAt: (data["createdAt"] as? Timestamp)?.dateValue() ?? Date()
+                        createdAt: (data["createdAt"] as? Timestamp)?.dateValue() ?? Date(),
+                        isAdmin: data["isAdmin"] as? Bool ?? false
                     )
                 }
             } catch {

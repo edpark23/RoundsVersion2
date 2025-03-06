@@ -36,27 +36,10 @@ struct ProfileView: View {
                     StatRow(title: "Win Rate", value: "0%") // TODO: Implement
                 }
                 
-                // Admin Section (only shown for admin users)
-                if mainViewModel.userProfile?.isAdmin == true {
-                    Section {
-                        NavigationLink {
-                            AdminView()
-                        } label: {
-                            Label("Admin Panel", systemImage: "gear")
-                        }
-                    } header: {
-                        Text("Administration")
-                    } footer: {
-                        Text("Access to administrative functions")
-                    }
-                }
-                
                 // Sign Out Section
                 Section {
                     Button(role: .destructive) {
-                        Task {
-                            await mainViewModel.signOut()
-                        }
+                        mainViewModel.signOut()
                     } label: {
                         Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
                     }

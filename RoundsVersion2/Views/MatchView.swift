@@ -179,7 +179,8 @@ struct ChatBubble: View {
                 fullName: "John Doe",
                 email: "john@example.com",
                 elo: 1200,
-                createdAt: Date()
+                createdAt: Date(),
+                isAdmin: false
             )
         )
     }

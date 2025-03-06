@@ -6,6 +6,7 @@ struct UserProfile: Identifiable, Codable {
     let email: String
     let elo: Int
     let createdAt: Date
+    let isAdmin: Bool
     
     var initials: String {
         let components = fullName.split(separator: " ")

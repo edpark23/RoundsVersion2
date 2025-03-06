@@ -42,7 +42,8 @@ class SignUpViewModel: ObservableObject {
                 "fullName": fullName,
                 "email": email,
                 "createdAt": Date(),
-                "elo": 1200
+                "elo": 1200,
+                "isAdmin": false
             ])
             
             isAuthenticated = true
