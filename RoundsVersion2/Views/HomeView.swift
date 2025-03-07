@@ -5,6 +5,7 @@ struct HomeView: View {
     @EnvironmentObject private var mainViewModel: MainViewModel
     @State private var isShowingMatchmaking = false
     @State private var activeMatch: ActiveMatch? = nil
+    @Environment(\.presentationMode) private var presentationMode
     
     var body: some View {
         NavigationView {
@@ -69,6 +70,7 @@ struct HomeView: View {
             .sheet(item: $activeMatch) { match in
                 NavigationView {
                     MatchView(matchId: match.id, opponent: match.opponent)
+                        .environment(\.dismissToRoot, { activeMatch = nil })
                 }
             }
         }

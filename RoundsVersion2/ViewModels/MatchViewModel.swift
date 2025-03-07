@@ -4,87 +4,171 @@ import FirebaseAuth
 
 @MainActor
 class MatchViewModel: ObservableObject {
-    let matchId: String
-    
     @Published var messages: [ChatMessage] = []
     @Published var messageText = ""
-    @Published var errorMessage: String?
     @Published var currentUserProfile: UserProfile?
+    @Published var matchAccepted = false
+    @Published var errorMessage: String?
     
-    private var messagesListener: ListenerRegistration?
+    private let matchId: String
+    private let db = Firestore.firestore()
     
     init(matchId: String) {
         self.matchId = matchId
-        setupMessagesListener()
-        fetchCurrentUserProfile()
-    }
-    
-    private func fetchCurrentUserProfile() {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
-        let db = Firestore.firestore()
         
         Task {
-            do {
-                let doc = try await db.collection("users").document(userId).getDocument()
-                if let data = doc.data() {
-                    self.currentUserProfile = UserProfile(
-                        id: userId,
-                        fullName: data["fullName"] as? String ?? "",
-                        email: data["email"] as? String ?? "",
-                        elo: data["elo"] as? Int ?? 1200,
-                        createdAt: (data["createdAt"] as? Timestamp)?.dateValue() ?? Date(),
-                        isAdmin: data["isAdmin"] as? Bool ?? false
-                    )
+            await loadCurrentUser()
+            await loadMatchStatus()
+            listenToMessages()
+        }
+    }
+    
+    private func loadCurrentUser() async {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        
+        do {
+            let document = try await db.collection("users").document(userId).getDocument()
+            if let data = document.data() {
+                let userProfile = UserProfile(
+                    id: userId,
+                    fullName: data["fullName"] as? String ?? "",
+                    email: data["email"] as? String ?? "",
+                    elo: data["elo"] as? Int ?? 1200,
+                    createdAt: (data["createdAt"] as? Timestamp)?.dateValue() ?? Date(),
+                    isAdmin: data["isAdmin"] as? Bool ?? false
+                )
+                currentUserProfile = userProfile
+            }
+        } catch {
+            print("Error loading current user: \(error)")
+        }
+    }
+    
+    private func loadMatchStatus() async {
+        do {
+            let document = try await db.collection("matches").document(matchId).getDocument()
+            if let data = document.data() {
+                await MainActor.run {
+                    matchAccepted = data["status"] as? String == "accepted"
                 }
-            } catch {
-                self.errorMessage = error.localizedDescription
+            }
+        } catch {
+            print("Error loading match status: \(error)")
+        }
+    }
+    
+    func acceptMatch() async {
+        do {
+            let updateData: [String: Any] = [
+                "status": "accepted",
+                "acceptedAt": FieldValue.serverTimestamp()
+            ]
+            try await db.collection("matches").document(matchId).updateData(updateData)
+            await MainActor.run {
+                matchAccepted = true
+            }
+        } catch {
+            print("Error accepting match: \(error)")
+            await MainActor.run {
+                errorMessage = "Failed to accept match"
             }
         }
     }
     
-    private func setupMessagesListener() {
-        let db = Firestore.firestore()
-        
-        messagesListener = db.collection("matches")
-            .document(matchId)
-            .collection("messages")
-            .order(by: "timestamp", descending: false)
-            .addSnapshotListener { [weak self] snapshot, error in
-                guard let documents = snapshot?.documents else {
-                    self?.errorMessage = error?.localizedDescription
-                    return
-                }
-                
-                self?.messages = documents.compactMap { ChatMessage(document: $0) }
+    func declineMatch() async {
+        do {
+            let updateData: [String: Any] = [
+                "status": "declined",
+                "declinedAt": FieldValue.serverTimestamp()
+            ]
+            try await db.collection("matches").document(matchId).updateData(updateData)
+        } catch {
+            print("Error declining match: \(error)")
+            await MainActor.run {
+                errorMessage = "Failed to decline match"
             }
+        }
     }
     
     func sendMessage() {
         guard !messageText.isEmpty,
               let userId = Auth.auth().currentUser?.uid else { return }
         
-        let db = Firestore.firestore()
-        let messageRef = db.collection("matches")
-            .document(matchId)
-            .collection("messages")
-            .document()
+        let message = ChatMessage(
+            id: UUID().uuidString,
+            senderId: userId,
+            text: messageText,
+            timestamp: Date()
+        )
         
-        Task {
-            do {
-                try await messageRef.setData([
-                    "senderId": userId,
-                    "text": messageText,
-                    "timestamp": FieldValue.serverTimestamp()
-                ])
-                
-                messageText = ""
-            } catch {
-                errorMessage = error.localizedDescription
+        let messageData: [String: Any] = [
+            "text": message.text,
+            "senderId": message.senderId,
+            "timestamp": message.timestamp
+        ]
+        
+        db.collection("matches").document(matchId)
+            .collection("messages").document(message.id)
+            .setData(messageData) { [weak self] error in
+                if let error = error {
+                    print("Error sending message: \(error)")
+                } else {
+                    DispatchQueue.main.async {
+                        self?.messageText = ""
+                    }
+                }
             }
-        }
     }
     
-    deinit {
-        messagesListener?.remove()
+    private func listenToMessages() {
+        db.collection("matches").document(matchId)
+            .collection("messages")
+            .order(by: "timestamp", descending: false)
+            .addSnapshotListener { [weak self] querySnapshot, error in
+                guard let self = self,
+                      let documents = querySnapshot?.documents else {
+                    print("Error fetching messages: \(error?.localizedDescription ?? "Unknown error")")
+                    return
+                }
+                
+                self.messages = documents.compactMap { document in
+                    guard let text = document.data()["text"] as? String,
+                          let senderId = document.data()["senderId"] as? String,
+                          let timestamp = document.data()["timestamp"] as? Timestamp
+                    else { return nil }
+                    
+                    return ChatMessage(
+                        id: document.documentID,
+                        senderId: senderId,
+                        text: text,
+                        timestamp: timestamp.dateValue()
+                    )
+                }
+            }
+    }
+    
+    func updateSelectedCourse(course: GolfCourseSelectorViewModel.GolfCourseDetails) async throws {
+        let updateData: [String: Any] = [
+            "courseId": course.id,
+            "courseName": course.clubName,
+            "courseLocation": "\(course.city), \(course.state)",
+            "courseSelectedAt": FieldValue.serverTimestamp()
+        ]
+        
+        try await db.collection("matches").document(matchId).updateData(updateData)
+    }
+    
+    func forfeitMatch() async {
+        do {
+            let updateData: [String: Any] = [
+                "status": "forfeited",
+                "forfeitedAt": FieldValue.serverTimestamp(),
+                "forfeitedBy": Auth.auth().currentUser?.uid ?? ""
+            ]
+            try await db.collection("matches").document(matchId).updateData(updateData)
+        } catch {
+            print("Error forfeiting match: \(error)")
+            errorMessage = "Failed to forfeit match"
+        }
     }
 } 

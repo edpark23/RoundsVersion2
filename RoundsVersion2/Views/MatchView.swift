@@ -1,11 +1,25 @@
 import SwiftUI
 import FirebaseFirestore
 
+private struct DismissToRootKey: EnvironmentKey {
+    static let defaultValue: () -> Void = {}
+}
+
+extension EnvironmentValues {
+    var dismissToRoot: () -> Void {
+        get { self[DismissToRootKey.self] }
+        set { self[DismissToRootKey.self] = newValue }
+    }
+}
+
 struct MatchView: View {
     let matchId: String
     let opponent: UserProfile
     @StateObject private var viewModel: MatchViewModel
     @Environment(\.dismiss) private var dismiss
+    @State private var showingGolfCourseSelector = false
+    @State private var selectedCourse: GolfCourseSelectorViewModel.GolfCourseDetails?
+    @Environment(\.dismissToRoot) private var dismissToRoot
     
     init(matchId: String, opponent: UserProfile) {
         self.matchId = matchId
@@ -42,42 +56,44 @@ struct MatchView: View {
                 }
                 .padding(.vertical)
                 
-                // Buttons Section
+                // Golf Course Section
                 VStack(spacing: 12) {
-                    Button {
-                        // TODO: Implement golf course selection
-                    } label: {
-                        Text("Select Golf Course")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.green)
-                            .cornerRadius(10)
-                    }
-                    
-                    Button {
-                        // TODO: Implement score verification
-                    } label: {
-                        Text("Verify Score")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.blue)
-                            .cornerRadius(10)
-                    }
-                    
-                    Button {
-                        // TODO: Implement match completion
-                    } label: {
-                        Text("End Match")
-                            .font(.subheadline)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 30)
-                            .padding(.vertical, 8)
-                            .background(Color.red)
-                            .cornerRadius(8)
+                    if let course = selectedCourse {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(course.clubName)
+                                .font(.headline)
+                            Text("\(course.city), \(course.state)")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(10)
+                        
+                        Button {
+                            // TODO: Implement score verification
+                        } label: {
+                            Text("Enter Scores")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.blue)
+                                .cornerRadius(10)
+                        }
+                    } else {
+                        Button {
+                            showingGolfCourseSelector = true
+                        } label: {
+                            Text("Select Golf Course")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.green)
+                                .cornerRadius(10)
+                        }
                     }
                 }
                 .padding(.horizontal)
@@ -140,6 +156,31 @@ struct MatchView: View {
                 } label: {
                     Image(systemName: "chevron.left")
                     Text("Back")
+                }
+            }
+            
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    Task {
+                        await viewModel.forfeitMatch()
+                        dismissToRoot()
+                    }
+                } label: {
+                    Text("Forfeit")
+                        .foregroundColor(.red)
+                        .font(.subheadline)
+                }
+            }
+        }
+        .sheet(isPresented: $showingGolfCourseSelector) {
+            GolfCourseSelectorView { course in
+                selectedCourse = course
+                Task {
+                    do {
+                        try await viewModel.updateSelectedCourse(course: course)
+                    } catch {
+                        print("Error updating match with selected course: \(error)")
+                    }
                 }
             }
         }

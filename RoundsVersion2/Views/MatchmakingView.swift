@@ -5,6 +5,7 @@ import FirebaseAuth
 struct MatchmakingView: View {
     @StateObject private var viewModel = MatchmakingViewModel()
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.presentationMode) private var presentationMode
     
     var body: some View {
         NavigationStack {
@@ -65,6 +66,10 @@ struct MatchmakingView: View {
             .navigationDestination(isPresented: $viewModel.shouldNavigateToMatch) {
                 if let opponent = viewModel.opponent, let matchId = viewModel.matchId {
                     MatchView(matchId: matchId, opponent: opponent)
+                        .environment(\.dismissToRoot, { 
+                            viewModel.shouldNavigateToMatch = false
+                            dismiss()
+                        })
                 }
             }
         }
