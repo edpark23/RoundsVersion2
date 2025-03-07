@@ -18,6 +18,7 @@ struct MatchView: View {
     @StateObject private var viewModel: MatchViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var showingGolfCourseSelector = false
+    @State private var showingScoreVerification = false
     @State private var selectedCourse: GolfCourseSelectorViewModel.GolfCourseDetails?
     @Environment(\.dismissToRoot) private var dismissToRoot
     
@@ -72,7 +73,7 @@ struct MatchView: View {
                         .cornerRadius(10)
                         
                         Button {
-                            // TODO: Implement score verification
+                            showingScoreVerification = true
                         } label: {
                             Text("Enter Scores")
                                 .font(.headline)
@@ -182,6 +183,11 @@ struct MatchView: View {
                         print("Error updating match with selected course: \(error)")
                     }
                 }
+            }
+        }
+        .sheet(isPresented: $showingScoreVerification) {
+            if let course = selectedCourse {
+                ScoreVerificationView(matchId: matchId, selectedCourse: course)
             }
         }
     }
