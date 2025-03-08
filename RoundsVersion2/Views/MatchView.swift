@@ -29,123 +29,143 @@ struct MatchView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Match Header
-            VStack(spacing: 15) {
-                // Players Section
-                HStack(spacing: 20) {
-                    if let currentUser = viewModel.currentUserProfile {
-                        VStack {
-                            OpponentProfileCard(opponent: currentUser)
-                            Text("You")
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
-                        }
-                    }
-                    
-                    Text("VS")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.gray)
-                    
-                    VStack {
-                        OpponentProfileCard(opponent: opponent)
-                        Text("Opponent")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                    }
-                }
-                .padding(.vertical)
-                
-                // Golf Course Section
-                VStack(spacing: 12) {
-                    if let course = selectedCourse {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(course.clubName)
-                                .font(.headline)
-                            Text("\(course.city), \(course.state)")
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
-                        }
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(10)
-                        
-                        Button {
-                            showingScoreVerification = true
-                        } label: {
-                            Text("Enter Scores")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.blue)
-                                .cornerRadius(10)
-                        }
-                    } else {
-                        Button {
-                            showingGolfCourseSelector = true
-                        } label: {
-                            Text("Select Golf Course")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.green)
-                                .cornerRadius(10)
-                        }
-                    }
-                }
-                .padding(.horizontal)
-            }
-            .padding()
-            .background(Color(.systemBackground))
-            .shadow(radius: 2)
+        ZStack {
+            AppColors.backgroundWhite
+                .ignoresSafeArea()
             
-            // Chat Section
-            VStack {
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(spacing: 12) {
-                            ForEach(viewModel.messages) { message in
-                                ChatBubble(message: message)
+            VStack(spacing: 0) {
+                // Match Header
+                VStack(spacing: 15) {
+                    // Players Section
+                    HStack(spacing: 20) {
+                        if let currentUser = viewModel.currentUserProfile {
+                            VStack {
+                                PlayerProfileCard(profile: currentUser)
+                                Text("You")
+                                    .font(.subheadline)
+                                    .foregroundColor(AppColors.subtleGray)
                             }
                         }
-                        .padding()
-                    }
-                    .onChange(of: viewModel.messages) { _, messages in
-                        if let lastMessage = messages.last {
-                            withAnimation {
-                                proxy.scrollTo(lastMessage.id, anchor: .bottom)
-                            }
+                        
+                        Text("VS")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(AppColors.subtleGray)
+                        
+                        VStack {
+                            PlayerProfileCard(profile: opponent)
+                            Text("Opponent")
+                                .font(.subheadline)
+                                .foregroundColor(AppColors.subtleGray)
                         }
                     }
-                }
-                
-                // Message Input
-                HStack(spacing: 12) {
-                    TextField("Message", text: $viewModel.messageText)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .submitLabel(.send)
-                        .onSubmit {
-                            viewModel.sendMessage()
-                        }
+                    .padding(.vertical)
                     
-                    Button {
-                        viewModel.sendMessage()
-                    } label: {
-                        Image(systemName: "paperplane.fill")
-                            .foregroundColor(.white)
-                            .padding(8)
-                            .background(Color.green)
-                            .clipShape(Circle())
+                    // Golf Course Section
+                    VStack(spacing: 12) {
+                        if let course = selectedCourse {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(course.clubName)
+                                    .font(.headline)
+                                    .foregroundColor(AppColors.primaryNavy)
+                                Text("\(course.city), \(course.state)")
+                                    .font(.subheadline)
+                                    .foregroundColor(AppColors.subtleGray)
+                            }
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .cardStyle()
+                            
+                            Button {
+                                showingScoreVerification = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: "flag.fill")
+                                    Text("Enter Scores")
+                                }
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                            }
+                            .navyButton()
+                        } else {
+                            Button {
+                                showingGolfCourseSelector = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: "map.fill")
+                                    Text("Select Golf Course")
+                                }
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                            }
+                            .navyButton()
+                        }
                     }
-                    .disabled(viewModel.messageText.isEmpty)
+                    .padding(.horizontal)
                 }
                 .padding()
-                .background(Color(.systemBackground))
-                .shadow(radius: 2)
+                .background(Color.white)
+                .cornerRadius(12)
+                .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+                .padding()
+                
+                // Chat Section
+                VStack {
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            LazyVStack(spacing: 12) {
+                                ForEach(viewModel.messages) { message in
+                                    ChatBubble(message: message)
+                                }
+                            }
+                            .padding()
+                        }
+                        .onChange(of: viewModel.messages) { _, messages in
+                            if let lastMessage = messages.last {
+                                withAnimation {
+                                    proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Message Input
+                    HStack(spacing: 12) {
+                        TextField("Message", text: $viewModel.messageText)
+                            .padding(10)
+                            .background(Color.white)
+                            .cornerRadius(20)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .stroke(AppColors.subtleGray.opacity(0.3), lineWidth: 1)
+                            )
+                            .submitLabel(.send)
+                            .onSubmit {
+                                viewModel.sendMessage()
+                            }
+                        
+                        Button {
+                            viewModel.sendMessage()
+                        } label: {
+                            Image(systemName: "paperplane.fill")
+                                .foregroundColor(.white)
+                                .padding(10)
+                                .background(AppColors.highlightBlue)
+                                .clipShape(Circle())
+                        }
+                        .disabled(viewModel.messageText.isEmpty)
+                    }
+                    .padding()
+                    .background(Color.white)
+                    .cornerRadius(12, corners: [.topLeft, .topRight])
+                    .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: -1)
+                }
+                .background(Color.white)
+                .cornerRadius(12)
+                .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+                .padding(.horizontal)
             }
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -155,8 +175,11 @@ struct MatchView: View {
                 Button {
                     dismiss()
                 } label: {
-                    Image(systemName: "chevron.left")
-                    Text("Back")
+                    HStack {
+                        Image(systemName: "chevron.left")
+                        Text("Back")
+                    }
+                    .foregroundColor(AppColors.primaryNavy)
                 }
             }
             
@@ -195,7 +218,6 @@ struct MatchView: View {
 
 struct ChatBubble: View {
     let message: ChatMessage
-    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         HStack {
@@ -205,10 +227,14 @@ struct ChatBubble: View {
             
             Text(message.text)
                 .padding(12)
-                .background(message.isFromCurrentUser ? Color.green : Color(.systemGray5))
-                .foregroundColor(message.isFromCurrentUser ? .white : .primary)
+                .background(message.isFromCurrentUser ? AppColors.highlightBlue : Color.white)
+                .foregroundColor(message.isFromCurrentUser ? .white : AppColors.primaryNavy)
                 .cornerRadius(16)
-                .shadow(radius: 1)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(message.isFromCurrentUser ? Color.clear : AppColors.subtleGray.opacity(0.3), lineWidth: 1)
+                )
+                .shadow(color: Color.black.opacity(0.05), radius: 1, x: 0, y: 1)
             
             if !message.isFromCurrentUser {
                 Spacer()

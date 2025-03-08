@@ -7,8 +7,11 @@ class GolfCourseSelectorViewModel: ObservableObject {
     @Published var selectedCourse: GolfCourseDetails?
     @Published var isLoading = false
     @Published var error: String?
+    @Published var hasMoreCourses = true
     
     private let db = Firestore.firestore()
+    private let pageSize = 5 // Smaller batch size to prevent message too large errors
+    private var lastDocument: DocumentSnapshot?
     
     struct HoleDetails: Hashable {
         let number: Int
@@ -46,56 +49,120 @@ class GolfCourseSelectorViewModel: ObservableObject {
     }
     
     func loadCourses() async {
+        guard !isLoading else { return }
+        
         isLoading = true
         error = nil
         
+        // Reset if this is a fresh load
+        if lastDocument == nil {
+            courses = []
+        }
+        
         do {
-            let snapshot = try await db.collection("courses").getDocuments()
-            courses = snapshot.documents.compactMap { document in
+            var query = db.collection("courses").limit(to: pageSize)
+            
+            // If we have a last document, start after it for pagination
+            if let lastDocument = lastDocument {
+                query = query.start(afterDocument: lastDocument)
+            }
+            
+            let snapshot = try await query.getDocuments()
+            
+            // Update the last document for pagination
+            lastDocument = snapshot.documents.last
+            
+            // Check if we've reached the end
+            hasMoreCourses = snapshot.documents.count == pageSize
+            
+            let newCourses = snapshot.documents.compactMap { (document: QueryDocumentSnapshot) -> GolfCourseDetails? in
                 let data = document.data()
                 
                 guard let clubName = data["club_name"] as? String,
                       let courseName = data["course_name"] as? String,
                       let location = data["location"] as? [String: Any],
                       let city = location["city"] as? String,
-                      let state = location["state"] as? String,
-                      let tees = data["tees"] as? [String: [[String: Any]]]
+                      let state = location["state"] as? String
                 else { 
                     print("Failed to parse basic course data for document: \(document.documentID)")
                     return nil 
                 }
                 
-                var teeDetails: [TeeDetails] = []
-                
-                // Process male tees
-                if let maleTees = tees["male"] {
-                    let processedTees = processTees(maleTees, type: "male")
-                    teeDetails.append(contentsOf: processedTees)
-                }
-                
-                // Process female tees
-                if let femaleTees = tees["female"] {
-                    let processedTees = processTees(femaleTees, type: "female")
-                    teeDetails.append(contentsOf: processedTees)
-                }
-                
+                // Create a simplified version of the course with minimal data
+                // We'll load the full details only when a course is selected
                 return GolfCourseDetails(
                     id: document.documentID,
                     clubName: clubName,
                     courseName: courseName,
                     city: city,
                     state: state,
-                    tees: teeDetails
+                    tees: [] // Empty tees array to reduce data size
                 )
             }
             
-            print("Loaded \(courses.count) courses")
+            // Append new courses to existing ones
+            courses.append(contentsOf: newCourses)
+            print("Loaded \(newCourses.count) courses, total: \(courses.count)")
         } catch {
             self.error = "Failed to load courses: \(error.localizedDescription)"
             print("Error loading courses: \(error)")
         }
         
         isLoading = false
+    }
+    
+    // New method to load full course details when needed
+    func loadCourseDetails(for courseId: String) async -> GolfCourseDetails? {
+        do {
+            let document = try await db.collection("courses").document(courseId).getDocument()
+            guard document.exists, let data = document.data() else {
+                print("Course document not found: \(courseId)")
+                return nil
+            }
+            
+            guard let clubName = data["club_name"] as? String,
+                  let courseName = data["course_name"] as? String,
+                  let location = data["location"] as? [String: Any],
+                  let city = location["city"] as? String,
+                  let state = location["state"] as? String,
+                  let tees = data["tees"] as? [String: [[String: Any]]]
+            else { 
+                print("Failed to parse course details for document: \(courseId)")
+                return nil 
+            }
+            
+            var teeDetails: [TeeDetails] = []
+            
+            // Process male tees
+            if let maleTees = tees["male"] {
+                let processedTees = processTees(maleTees, type: "male")
+                teeDetails.append(contentsOf: processedTees)
+            }
+            
+            // Process female tees
+            if let femaleTees = tees["female"] {
+                let processedTees = processTees(femaleTees, type: "female")
+                teeDetails.append(contentsOf: processedTees)
+            }
+            
+            return GolfCourseDetails(
+                id: document.documentID,
+                clubName: clubName,
+                courseName: courseName,
+                city: city,
+                state: state,
+                tees: teeDetails
+            )
+        } catch {
+            print("Error loading course details: \(error)")
+            return nil
+        }
+    }
+    
+    // Load more courses when scrolling
+    func loadMoreCoursesIfNeeded() async {
+        guard hasMoreCourses && !isLoading else { return }
+        await loadCourses()
     }
     
     private func processTees(_ tees: [[String: Any]], type: String) -> [TeeDetails] {
@@ -146,7 +213,15 @@ class GolfCourseSelectorViewModel: ObservableObject {
         }
     }
     
-    func selectCourse(_ course: GolfCourseDetails) {
+    func selectCourse(_ course: GolfCourseDetails) async {
+        // If the course has no tees, load the full details
+        if course.tees.isEmpty {
+            if let fullCourse = await loadCourseDetails(for: course.id) {
+                selectedCourse = fullCourse
+                return
+            }
+        }
+        
         selectedCourse = course
     }
 } 

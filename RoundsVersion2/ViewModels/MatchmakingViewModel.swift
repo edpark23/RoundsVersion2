@@ -38,6 +38,7 @@ class MatchmakingViewModel: ObservableObject {
     @Published var shouldNavigateToMatch = false
     @Published var errorMessage: String?
     @Published var matchId: String?
+    @Published var rotation: Double = 0
     
     private let listeners = ListenerManager()
     private var currentUserId: String?

@@ -18,194 +18,295 @@ struct ScoreVerificationView: View {
     }
     
     var body: some View {
-        NavigationView {
-            VStack(spacing: 20) {
-                if viewModel.isProcessing {
-                    if let image = viewModel.capturedImage {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(maxHeight: 300)
-                            .cornerRadius(10)
-                            .overlay {
-                                ProgressView("Processing scorecard...")
-                                    .padding()
-                                    .background(Color(.systemBackground).opacity(0.8))
-                                    .cornerRadius(10)
-                            }
-                    }
-                } else if let processedImage = viewModel.processedImage {
-                    Image(uiImage: processedImage)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxHeight: 300)
-                        .cornerRadius(10)
-                } else if let image = viewModel.capturedImage {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxHeight: 300)
-                        .cornerRadius(10)
-                }
-                
-                if !viewModel.scores.isEmpty {
-                    ScoreCardView(
-                        scores: viewModel.scores,
-                        holes: selectedCourse.tees.first?.holes ?? []
-                    )
-                    
-                    if let playerName = viewModel.foundPlayerName {
-                        Text("Scores found for: \(playerName)")
-                            .font(.subheadline)
-                            .foregroundColor(.green)
-                    } else {
-                        Text("Using scores from first row")
-                            .font(.subheadline)
-                            .foregroundColor(.orange)
-                    }
-                    
-                    Button {
-                        Task {
-                            await viewModel.submitScores(matchId: matchId)
-                            dismiss()
-                        }
-                    } label: {
-                        Text("Submit Scores")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.green)
-                            .cornerRadius(10)
+        ZStack {
+            AppColors.backgroundWhite
+                .ignoresSafeArea()
+            
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Header
+                    HStack {
+                        Text("Score Verification")
+                            .font(.title)
+                            .fontWeight(.bold)
+                            .foregroundColor(AppColors.primaryNavy)
+                        Spacer()
                     }
                     .padding(.horizontal)
-                } else if !viewModel.isProcessing {
+                    
+                    // Image Card
                     VStack(spacing: 16) {
-                        Button {
-                            sourceType = .photoLibrary
-                            showingImagePicker = true
-                        } label: {
-                            Label("Choose Photo", systemImage: "photo.on.rectangle")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.blue)
-                                .cornerRadius(10)
+                        if let image = viewModel.processedImage ?? viewModel.capturedImage {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(maxHeight: 300)
+                                .cardStyle()
+                        } else {
+                            uploadPlaceholder
                         }
                         
-                        if isCameraAvailable {
-                            Button {
-                                sourceType = .camera
-                                showingImagePicker = true
-                            } label: {
-                                Label("Take Photo", systemImage: "camera")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(Color.blue)
-                                    .cornerRadius(10)
+                        Button(action: { showingImagePicker = true }) {
+                            HStack {
+                                Image(systemName: "camera.fill")
+                                Text(viewModel.capturedImage == nil ? "Upload Scorecard" : "Retake Photo")
                             }
+                            .padding()
+                            .frame(maxWidth: .infinity)
                         }
+                        .navyButton()
                     }
                     .padding(.horizontal)
+                    
+                    // Results Section
+                    if !viewModel.scores.isEmpty {
+                        resultsCard
+                    }
+                    
+                    // Debug Info
+                    if !viewModel.debugInfo.isEmpty {
+                        debugCard
+                    }
                 }
-                
-                if let error = viewModel.error {
-                    Text(error)
-                        .foregroundColor(.red)
-                        .padding()
-                }
-                
-                Button {
-                    showingDebugInfo.toggle()
-                } label: {
-                    Label("Debug Info", systemImage: "info.circle")
-                        .font(.caption)
-                }
-                .sheet(isPresented: $showingDebugInfo) {
-                    NavigationView {
-                        ScrollView {
-                            VStack(spacing: 20) {
-                                Text(viewModel.debugInfo)
-                                    .font(.system(.body, design: .monospaced))
-                                    .textSelection(.enabled)
-                                    .padding()
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                
-                                HStack(spacing: 16) {
-                                    Button {
-                                        UIPasteboard.general.string = viewModel.debugInfo
-                                    } label: {
-                                        Label("Copy to Clipboard", systemImage: "doc.on.doc")
-                                            .font(.headline)
-                                            .foregroundColor(.white)
-                                            .frame(maxWidth: .infinity)
-                                            .padding()
-                                            .background(Color.blue)
-                                            .cornerRadius(10)
-                                    }
-                                    
-                                    Button {
-                                        showingShareSheet = true
-                                    } label: {
-                                        Label("Share", systemImage: "square.and.arrow.up")
-                                            .font(.headline)
-                                            .foregroundColor(.white)
-                                            .frame(maxWidth: .infinity)
-                                            .padding()
-                                            .background(Color.blue)
-                                            .cornerRadius(10)
-                                    }
-                                }
-                                .padding(.horizontal)
-                            }
-                        }
-                        .navigationTitle("Debug Information")
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .navigationBarTrailing) {
-                                Button("Done") {
-                                    showingDebugInfo = false
-                                }
+                .padding(.vertical)
+            }
+        }
+        .sheet(isPresented: $showingImagePicker) {
+            if sourceType == .camera && !isCameraAvailable {
+                Text("Camera is not available on this device")
+                    .padding()
+            } else {
+                ImagePicker(image: $viewModel.capturedImage, sourceType: sourceType)
+                    .onDisappear {
+                        if viewModel.capturedImage != nil {
+                            Task {
+                                await viewModel.processImage()
                             }
                         }
                     }
-                }
-                
-                Spacer()
-            }
-            .navigationTitle("Score Verification")
-            .navigationBarTitleDisplayMode(.inline)
-            .sheet(isPresented: $showingImagePicker) {
-                if sourceType == .camera && !isCameraAvailable {
-                    Text("Camera is not available on this device")
-                        .padding()
-                } else {
-                    ImagePicker(image: $viewModel.capturedImage, sourceType: sourceType)
-                        .onDisappear {
-                            if viewModel.capturedImage != nil {
-                                Task {
-                                    await viewModel.processImage()
-                                }
-                            }
-                        }
-                        .interactiveDismissDisabled()
-                }
-            }
-            .sheet(isPresented: $showingShareSheet) {
-                let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .short)
-                let text = """
-                Score Verification Debug Log
-                Generated: \(timestamp)
-                ----------------------------------------
-                
-                \(viewModel.debugInfo)
-                """
-                ShareSheet(items: [text])
+                    .interactiveDismissDisabled()
             }
         }
+        .onChange(of: viewModel.capturedImage) { oldValue, newValue in
+            if newValue != nil {
+                Task {
+                    await viewModel.processImage()
+                }
+            }
+        }
+        .alert("Error", isPresented: .constant(viewModel.error != nil)) {
+            Button("OK") { viewModel.error = nil }
+        } message: {
+            Text(viewModel.error ?? "")
+        }
+        .sheet(isPresented: $showingShareSheet) {
+            let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .short)
+            let text = """
+            Score Verification Debug Log
+            Generated: \(timestamp)
+            ----------------------------------------
+            
+            \(viewModel.debugInfo)
+            """
+            ShareSheet(items: [text])
+        }
+    }
+    
+    private var uploadPlaceholder: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "doc.text.viewfinder")
+                .font(.system(size: 60))
+                .foregroundColor(AppColors.secondaryNavy)
+            
+            Text("Take a photo of your scorecard")
+                .font(.headline)
+                .foregroundColor(AppColors.primaryNavy)
+            
+            Text("Make sure the scores are clearly visible")
+                .font(.subheadline)
+                .foregroundColor(AppColors.subtleGray)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 250)
+        .cardStyle()
+        .padding(.horizontal)
+    }
+    
+    private var resultsCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Detected Scores")
+                .font(.headline)
+                .foregroundColor(AppColors.primaryNavy)
+            
+            if let playerName = viewModel.foundPlayerName {
+                HStack {
+                    Image(systemName: "person.fill")
+                        .foregroundColor(AppColors.highlightBlue)
+                    Text("Player: \(playerName)")
+                        .foregroundColor(AppColors.primaryNavy)
+                }
+            }
+            
+            // Compact golf scorecard layout
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Swipe to see all holes →")
+                    .font(.caption)
+                    .foregroundColor(AppColors.subtleGray)
+                    .padding(.bottom, 4)
+                
+                ScrollView(.horizontal, showsIndicators: true) {
+                    VStack(spacing: 0) {
+                        // Header row with hole numbers
+                        HStack(spacing: 0) {
+                            Text("Hole")
+                                .frame(width: 40, height: 30)
+                                .background(AppColors.primaryNavy)
+                                .foregroundColor(.white)
+                            
+                            ForEach(0..<viewModel.scores.count, id: \.self) { index in
+                                Text("\(index + 1)")
+                                    .frame(width: 30, height: 30)
+                                    .background(AppColors.primaryNavy)
+                                    .foregroundColor(.white)
+                            }
+                            
+                            // Total column
+                            Text("Tot")
+                                .frame(width: 40, height: 30)
+                                .background(AppColors.primaryNavy)
+                                .foregroundColor(.white)
+                        }
+                        .font(.system(.caption2, design: .rounded))
+                        .fontWeight(.bold)
+                        
+                        // Par row (if available)
+                        if let selectedTee = selectedCourse.tees.first {
+                            HStack(spacing: 0) {
+                                Text("Par")
+                                    .frame(width: 40, height: 30)
+                                    .background(Color.gray.opacity(0.1))
+                                
+                                ForEach(selectedTee.holes.prefix(viewModel.scores.count), id: \.number) { hole in
+                                    Text("\(hole.par)")
+                                        .frame(width: 30, height: 30)
+                                        .background(Color.gray.opacity(0.1))
+                                }
+                                
+                                // Total par
+                                let totalPar = selectedTee.holes.prefix(viewModel.scores.count).reduce(0) { $0 + $1.par }
+                                Text("\(totalPar)")
+                                    .frame(width: 40, height: 30)
+                                    .background(Color.gray.opacity(0.1))
+                                    .fontWeight(.bold)
+                            }
+                            .font(.system(.caption, design: .rounded))
+                        }
+                        
+                        // Score row
+                        HStack(spacing: 0) {
+                            Text("Score")
+                                .frame(width: 40, height: 30)
+                                .background(AppColors.backgroundWhite)
+                            
+                            ForEach(viewModel.scores.indices, id: \.self) { index in
+                                Text("\(viewModel.scores[index])")
+                                    .frame(width: 30, height: 30)
+                                    .background(
+                                        getScoreBackgroundColor(
+                                            score: viewModel.scores[index],
+                                            par: selectedCourse.tees.first?.holes.count ?? 0 > index ? 
+                                                selectedCourse.tees.first?.holes[index].par ?? 0 : 0
+                                        )
+                                    )
+                                    .foregroundColor(.white)
+                            }
+                            
+                            // Total score
+                            let totalScore = viewModel.scores.reduce(0, +)
+                            Text("\(totalScore)")
+                                .frame(width: 40, height: 30)
+                                .background(AppColors.highlightBlue)
+                                .foregroundColor(.white)
+                                .fontWeight(.bold)
+                        }
+                        .font(.system(.caption, design: .rounded))
+                    }
+                    .cornerRadius(8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(AppColors.subtleGray.opacity(0.3), lineWidth: 1)
+                    )
+                    // Make sure the content is wide enough to scroll
+                    .frame(minWidth: UIScreen.main.bounds.width - 60)
+                }
+                .padding(.vertical, 4)
+            }
+            .padding(.horizontal, 4)
+            .background(Color.white)
+            .cornerRadius(8)
+            .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+            
+            Button(action: {
+                Task {
+                    await viewModel.submitScores(matchId: matchId)
+                    dismiss()
+                }
+            }) {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                    Text("Submit Scores")
+                }
+                .padding()
+                .frame(maxWidth: .infinity)
+            }
+            .navyButton()
+        }
+        .padding()
+        .cardStyle()
+        .padding(.horizontal)
+    }
+    
+    // Helper function to get background color based on score relative to par
+    private func getScoreBackgroundColor(score: Int, par: Int) -> Color {
+        if par == 0 { return AppColors.subtleGray }
+        
+        switch score - par {
+        case ..<0:  // Under par (birdie or better)
+            return Color.red
+        case 0:     // Par
+            return AppColors.primaryNavy
+        case 1:     // Bogey
+            return AppColors.highlightBlue
+        default:    // Double bogey or worse
+            return AppColors.subtleGray
+        }
+    }
+    
+    private var debugCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Debug Information")
+                    .font(.headline)
+                    .foregroundColor(AppColors.primaryNavy)
+                
+                Spacer()
+                
+                Button(action: { viewModel.exportDebugInfo() }) {
+                    Image(systemName: "square.and.arrow.up")
+                        .foregroundColor(AppColors.highlightBlue)
+                }
+            }
+            
+            ScrollView {
+                Text(viewModel.debugInfo)
+                    .font(.system(.footnote, design: .monospaced))
+                    .foregroundColor(AppColors.subtleGray)
+            }
+            .frame(maxHeight: 200)
+        }
+        .padding()
+        .cardStyle()
+        .padding(.horizontal)
     }
 }
 

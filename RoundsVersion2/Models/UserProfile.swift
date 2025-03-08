@@ -1,6 +1,6 @@
 import Foundation
 
-struct UserProfile: Identifiable, Codable {
+struct UserProfile: Identifiable, Hashable {
     let id: String
     let fullName: String
     let email: String
@@ -16,5 +16,13 @@ struct UserProfile: Identifiable, Codable {
             return String(first.prefix(2)).uppercased()
         }
         return "??"
+    }
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
+    static func == (lhs: UserProfile, rhs: UserProfile) -> Bool {
+        lhs.id == rhs.id
     }
 } 

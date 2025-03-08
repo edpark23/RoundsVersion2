@@ -10,18 +10,22 @@ struct MainView: View {
                 .tabItem {
                     Label("Home", systemImage: "house.fill")
                 }
+                .tint(AppColors.primaryNavy)
             
             ProfileView()
                 .tabItem {
-                    Label("Profile", systemImage: "person.fill")
+                    Label("Profile", systemImage: "person.circle.fill")
                 }
+                .tint(AppColors.primaryNavy)
             
             SettingsView()
                 .tabItem {
                     Label("Settings", systemImage: "gear")
                 }
+                .tint(AppColors.primaryNavy)
         }
-        .accentColor(.green)
+        .accentColor(AppColors.primaryNavy)
+        .primaryBackground()
     }
 }
 

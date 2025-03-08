@@ -3,166 +3,171 @@ import SwiftUI
 struct GolfCourseSelectorView: View {
     @StateObject private var viewModel = GolfCourseSelectorViewModel()
     @Environment(\.dismiss) private var dismiss
-    var onCourseSelected: (GolfCourseSelectorViewModel.GolfCourseDetails) -> Void
+    @State private var selectedCourseId: String?
+    @State private var isSelectingCourse = false
+    @State private var searchText = ""
+    var onCourseSelected: ((GolfCourseSelectorViewModel.GolfCourseDetails) -> Void)?
+    
+    var filteredCourses: [GolfCourseSelectorViewModel.GolfCourseDetails] {
+        if searchText.isEmpty {
+            return viewModel.courses
+        } else {
+            return viewModel.courses.filter { course in
+                course.clubName.localizedCaseInsensitiveContains(searchText) ||
+                course.courseName.localizedCaseInsensitiveContains(searchText) ||
+                course.city.localizedCaseInsensitiveContains(searchText) ||
+                course.state.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+    }
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 20) {
-                if viewModel.isLoading {
-                    ProgressView("Loading courses...")
-                } else {
-                    // Course Picker Section
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Select a Golf Course")
-                            .font(.headline)
-                            .foregroundColor(.gray)
-                        
-                        Menu {
-                            ForEach(viewModel.courses) { course in
-                                Button {
-                                    viewModel.selectCourse(course)
-                                } label: {
-                                    Text("\(course.clubName) - \(course.city), \(course.state)")
-                                }
-                            }
-                        } label: {
-                            HStack {
-                                Text(viewModel.selectedCourse?.clubName ?? "Choose a course")
-                                    .foregroundColor(viewModel.selectedCourse == nil ? .gray : .primary)
-                                Spacer()
-                                Image(systemName: "chevron.down")
-                                    .foregroundColor(.gray)
-                            }
-                            .padding()
-                            .background(Color(.systemGray6))
-                            .cornerRadius(10)
-                            .frame(maxWidth: .infinity)
+            VStack(spacing: 0) {
+                // Search bar
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(AppColors.subtleGray)
+                    
+                    TextField("Search courses...", text: $searchText)
+                        .autocapitalization(.none)
+                        .disableAutocorrection(true)
+                    
+                    if !searchText.isEmpty {
+                        Button(action: {
+                            searchText = ""
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(AppColors.subtleGray)
                         }
                     }
-                    .padding(.horizontal)
                 }
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(10)
+                .padding(.horizontal)
+                .padding(.top)
                 
-                if let selectedCourse = viewModel.selectedCourse {
-                    ScrollView {
-                        VStack(spacing: 16) {
-                            Text("Scorecard Preview")
+                // Content area
+                ZStack {
+                    AppColors.backgroundWhite
+                        .ignoresSafeArea()
+                    
+                    if viewModel.isLoading && viewModel.courses.isEmpty {
+                        // Initial loading state
+                        VStack {
+                            ProgressView()
+                                .scaleEffect(1.5)
+                            Text("Loading courses...")
+                                .foregroundColor(AppColors.subtleGray)
+                                .padding(.top)
+                        }
+                    } else if viewModel.courses.isEmpty {
+                        // No courses available
+                        VStack {
+                            Image(systemName: "flag.fill")
+                                .font(.system(size: 50))
+                                .foregroundColor(AppColors.subtleGray)
+                            Text("No courses available")
                                 .font(.headline)
+                                .foregroundColor(AppColors.subtleGray)
                                 .padding(.top)
                             
-                            ForEach(selectedCourse.tees, id: \.teeName) { tee in
-                                VStack(alignment: .leading, spacing: 8) {
-                                    HStack {
-                                        Text("\(tee.type.capitalized) - \(tee.teeName)")
-                                            .font(.subheadline)
-                                            .bold()
-                                        Spacer()
-                                        Text("Rating: \(String(format: "%.1f", tee.courseRating)) / \(tee.slopeRating)")
-                                            .font(.caption)
-                                    }
+                            if let error = viewModel.error {
+                                Text(error)
+                                    .font(.caption)
+                                    .foregroundColor(.red)
+                                    .multilineTextAlignment(.center)
+                                    .padding()
+                            }
+                        }
+                    } else if filteredCourses.isEmpty {
+                        // No search results
+                        VStack {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 50))
+                                .foregroundColor(AppColors.subtleGray)
+                            Text("No courses match your search")
+                                .font(.headline)
+                                .foregroundColor(AppColors.subtleGray)
+                                .padding(.top)
+                        }
+                    } else {
+                        // Course list
+                        List {
+                            ForEach(filteredCourses) { course in
+                                Button(action: {
+                                    selectedCourseId = course.id
+                                    isSelectingCourse = true
                                     
-                                    ScrollView(.horizontal, showsIndicators: false) {
-                                        VStack(spacing: 0) {
-                                            // Header row
-                                            HStack(spacing: 0) {
-                                                Text("Hole")
-                                                    .frame(width: 50)
-                                                ForEach(tee.holes, id: \.number) { hole in
-                                                    Text("\(hole.number)")
-                                                        .frame(width: 40)
-                                                }
-                                                if tee.holes.count == 9 {
-                                                    Text("Total")
-                                                        .frame(width: 50)
-                                                }
-                                            }
-                                            .font(.caption)
-                                            .bold()
-                                            .padding(.vertical, 4)
-                                            .background(Color.gray.opacity(0.1))
-                                            
-                                            // Par row
-                                            HStack(spacing: 0) {
-                                                Text("Par")
-                                                    .frame(width: 50)
-                                                ForEach(tee.holes, id: \.number) { hole in
-                                                    Text("\(hole.par)")
-                                                        .frame(width: 40)
-                                                }
-                                                if tee.holes.count == 9 {
-                                                    Text("\(tee.holes.reduce(0) { $0 + $1.par })")
-                                                        .frame(width: 50)
-                                                        .bold()
-                                                }
-                                            }
-                                            .font(.caption)
-                                            .padding(.vertical, 4)
-                                            
-                                            // Yardage row
-                                            HStack(spacing: 0) {
-                                                Text("Yards")
-                                                    .frame(width: 50)
-                                                ForEach(tee.holes, id: \.number) { hole in
-                                                    Text("\(hole.yardage)")
-                                                        .frame(width: 40)
-                                                }
-                                                if tee.holes.count == 9 {
-                                                    Text("\(tee.holes.reduce(0) { $0 + $1.yardage })")
-                                                        .frame(width: 50)
-                                                        .bold()
-                                                }
-                                            }
-                                            .font(.caption)
-                                            .padding(.vertical, 4)
-                                            .background(Color.gray.opacity(0.1))
-                                            
-                                            // Handicap row
-                                            HStack(spacing: 0) {
-                                                Text("HCP")
-                                                    .frame(width: 50)
-                                                ForEach(tee.holes, id: \.number) { hole in
-                                                    Text("\(hole.handicap)")
-                                                        .frame(width: 40)
-                                                }
-                                                if tee.holes.count == 9 {
-                                                    Text("-")
-                                                        .frame(width: 50)
-                                                }
-                                            }
-                                            .font(.caption)
-                                            .padding(.vertical, 4)
+                                    Task {
+                                        await viewModel.selectCourse(course)
+                                        if let selectedCourse = viewModel.selectedCourse {
+                                            onCourseSelected?(selectedCourse)
+                                            dismiss()
                                         }
                                     }
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                                    )
+                                }) {
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(course.clubName)
+                                                .font(.headline)
+                                                .foregroundColor(AppColors.primaryNavy)
+                                            Text(course.courseName)
+                                                .font(.subheadline)
+                                                .foregroundColor(AppColors.subtleGray)
+                                            Text("\(course.city), \(course.state)")
+                                                .font(.caption)
+                                                .foregroundColor(AppColors.subtleGray)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        if selectedCourseId == course.id && isSelectingCourse {
+                                            ProgressView()
+                                                .scaleEffect(1.2)
+                                        } else {
+                                            Image(systemName: "chevron.right")
+                                                .foregroundColor(AppColors.subtleGray)
+                                        }
+                                    }
                                 }
-                                .padding(.horizontal)
+                                .listRowBackground(Color.white)
                             }
                             
-                            Button(action: {
-                                if let course = viewModel.selectedCourse {
-                                    onCourseSelected(course)
-                                    dismiss()
+                            // Load more indicator
+                            if viewModel.hasMoreCourses {
+                                HStack {
+                                    Spacer()
+                                    ProgressView()
+                                    Spacer()
                                 }
-                            }) {
-                                Text("Confirm Golf Course")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(Color.blue)
-                                    .cornerRadius(10)
+                                .onAppear {
+                                    Task {
+                                        await viewModel.loadMoreCoursesIfNeeded()
+                                    }
+                                }
+                                .listRowBackground(Color.white)
                             }
-                            .padding()
                         }
+                        .listStyle(PlainListStyle())
                     }
-                    .background(Color(.systemBackground))
                 }
             }
-            .navigationTitle("Select Golf Course")
-            .task {
-                await viewModel.loadCourses()
+            .navigationTitle("Select Course")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                    .foregroundColor(AppColors.primaryNavy)
+                }
+            }
+            .onAppear {
+                Task {
+                    await viewModel.loadCourses()
+                }
             }
         }
     }

@@ -1,40 +1,38 @@
 import Foundation
 import FirebaseAuth
+import SwiftUI
 
 @MainActor
 class LoginViewModel: ObservableObject {
-    @Published var email = ""
-    @Published var password = ""
-    @Published var isLoading = false
-    @Published var errorMessage: String?
-    @Published var isAuthenticated = false
+    @Published private(set) var isLoading = false
+    @Published private(set) var error: String?
+    @Published private(set) var isAuthenticated = false
     
-    func login() async {
+    func login(email: String, password: String) async {
         guard !email.isEmpty, !password.isEmpty else {
-            errorMessage = "Please fill in all fields"
+            self.error = "Please fill in all fields"
             return
         }
         
-        isLoading = true
-        errorMessage = nil
+        self.isLoading = true
+        self.error = nil
         
         do {
             let result = try await Auth.auth().signIn(withEmail: email, password: password)
-            isAuthenticated = true
+            self.isAuthenticated = true
             print("Successfully logged in user: \(result.user.uid)")
         } catch {
-            errorMessage = error.localizedDescription
+            self.error = error.localizedDescription
         }
-        
-        isLoading = false
+        self.isLoading = false
     }
     
     func signOut() {
         do {
             try Auth.auth().signOut()
-            isAuthenticated = false
+            self.isAuthenticated = false
         } catch {
-            errorMessage = error.localizedDescription
+            self.error = error.localizedDescription
         }
     }
 } 
