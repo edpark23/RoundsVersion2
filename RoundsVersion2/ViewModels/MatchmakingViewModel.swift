@@ -109,7 +109,8 @@ class MatchmakingViewModel: ObservableObject {
                         email: data["email"] as? String ?? "",
                         elo: data["elo"] as? Int ?? 1200,
                         createdAt: (data["createdAt"] as? Timestamp)?.dateValue() ?? Date(),
-                        isAdmin: data["isAdmin"] as? Bool ?? false
+                        isAdmin: data["isAdmin"] as? Bool ?? false,
+                        profilePictureURL: data["profilePictureURL"] as? String
                     )
                     self.matchState = .found
                 }

@@ -6,6 +6,7 @@ struct SettingsView: View {
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @AppStorage("darkModeEnabled") private var darkModeEnabled = false
     @StateObject private var viewModel = LoginViewModel()
+    @State private var showingImportView = false
     
     var body: some View {
         NavigationView {
@@ -40,6 +41,12 @@ struct SettingsView: View {
                     }
                 }
                 
+                Section(header: Text("Data Management")) {
+                    NavigationLink(destination: CourseImportView()) {
+                        Label("Import Golf Courses", systemImage: "arrow.down.doc")
+                    }
+                }
+                
                 Section {
                     Button(action: {
                         viewModel.signOut()
@@ -54,7 +61,9 @@ struct SettingsView: View {
     }
 }
 
-#Preview {
-    SettingsView()
-        .environmentObject(MainViewModel())
+struct SettingsView_Previews: PreviewProvider {
+    static var previews: some View {
+        SettingsView()
+            .environmentObject(MainViewModel())
+    }
 } 

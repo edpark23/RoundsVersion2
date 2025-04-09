@@ -12,63 +12,116 @@ struct ScoreVerificationView: View {
     @State private var sourceType: UIImagePickerController.SourceType = .photoLibrary
     @State private var showingDebugInfo = false
     @State private var showingShareSheet = false
+    @State private var showingCameraOptions = false
+    @State private var isShowingMatchReview = false
     
     private var isCameraAvailable: Bool {
         UIImagePickerController.isSourceTypeAvailable(.camera)
     }
     
     var body: some View {
-        ZStack {
-            AppColors.backgroundWhite
-                .ignoresSafeArea()
-            
-            ScrollView {
-                VStack(spacing: 20) {
-                    // Header
-                    HStack {
-                        Text("Score Verification")
-                            .font(.title)
-                            .fontWeight(.bold)
-                            .foregroundColor(AppColors.primaryNavy)
-                        Spacer()
-                    }
-                    .padding(.horizontal)
-                    
-                    // Image Card
-                    VStack(spacing: 16) {
-                        if let image = viewModel.processedImage ?? viewModel.capturedImage {
-                            Image(uiImage: image)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(maxHeight: 300)
-                                .cardStyle()
-                        } else {
-                            uploadPlaceholder
+        NavigationStack {
+            ZStack {
+                AppColors.backgroundWhite
+                    .ignoresSafeArea()
+                
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // Header
+                        HStack {
+                            Text("Score Verification")
+                                .font(.title)
+                                .fontWeight(.bold)
+                                .foregroundColor(AppColors.primaryNavy)
+                            Spacer()
+                        }
+                        .padding(.horizontal)
+                        
+                        // Image Card
+                        VStack(spacing: 16) {
+                            if let image = viewModel.processedImage ?? viewModel.capturedImage {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(maxHeight: 300)
+                                    .cardStyle()
+                            } else {
+                                uploadPlaceholder
+                            }
+                            
+                            // Camera options
+                            HStack(spacing: 10) {
+                                // Take photo with camera button
+                                Button(action: {
+                                    if isCameraAvailable {
+                                        sourceType = .camera
+                                        showingImagePicker = true
+                                    } else {
+                                        viewModel.error = "Camera is not available on this device"
+                                    }
+                                }) {
+                                    HStack {
+                                        Image(systemName: "camera.fill")
+                                        Text("Take Photo")
+                                    }
+                                    .padding()
+                                    .frame(maxWidth: .infinity)
+                                }
+                                .navyButton()
+                                
+                                // Choose from library button
+                                Button(action: {
+                                    sourceType = .photoLibrary
+                                    showingImagePicker = true
+                                }) {
+                                    HStack {
+                                        Image(systemName: "photo.on.rectangle")
+                                        Text("Photo Library")
+                                    }
+                                    .padding()
+                                    .frame(maxWidth: .infinity)
+                                }
+                                .navyButton()
+                            }
+                            .padding(.horizontal, 4)
+                            
+                            if viewModel.capturedImage != nil {
+                                Button(action: {
+                                    showingCameraOptions = true
+                                }) {
+                                    HStack {
+                                        Image(systemName: "arrow.triangle.2.circlepath")
+                                        Text("Retake Photo")
+                                    }
+                                    .padding()
+                                    .frame(maxWidth: .infinity)
+                                }
+                                .foregroundColor(AppColors.primaryNavy)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(AppColors.primaryNavy, lineWidth: 1)
+                                )
+                            }
+                        }
+                        .padding(.horizontal)
+                        
+                        // Results Section
+                        if !viewModel.scores.isEmpty {
+                            resultsCard
                         }
                         
-                        Button(action: { showingImagePicker = true }) {
-                            HStack {
-                                Image(systemName: "camera.fill")
-                                Text(viewModel.capturedImage == nil ? "Upload Scorecard" : "Retake Photo")
-                            }
-                            .padding()
-                            .frame(maxWidth: .infinity)
+                        // Manual Score Entry
+                        if viewModel.showingManualScoreEntry {
+                            manualScoreEntryCard
                         }
-                        .navyButton()
+                        
+                        // Debug Info
+                        if !viewModel.debugInfo.isEmpty {
+                            debugCard
+                        }
                     }
-                    .padding(.horizontal)
-                    
-                    // Results Section
-                    if !viewModel.scores.isEmpty {
-                        resultsCard
-                    }
-                    
-                    // Debug Info
-                    if !viewModel.debugInfo.isEmpty {
-                        debugCard
-                    }
+                    .padding(.vertical)
                 }
-                .padding(.vertical)
             }
         }
         .sheet(isPresented: $showingImagePicker) {
@@ -109,6 +162,30 @@ struct ScoreVerificationView: View {
             \(viewModel.debugInfo)
             """
             ShareSheet(items: [text])
+        }
+        .confirmationDialog("Choose an option", isPresented: $showingCameraOptions) {
+            Button("Take a new photo") {
+                if isCameraAvailable {
+                    sourceType = .camera
+                    showingImagePicker = true
+                } else {
+                    viewModel.error = "Camera is not available on this device"
+                }
+            }
+            
+            Button("Choose from photo library") {
+                sourceType = .photoLibrary
+                showingImagePicker = true
+            }
+            
+            Button("Cancel", role: .cancel) {}
+        }
+        .fullScreenCover(isPresented: $isShowingMatchReview) {
+            MatchReviewView(
+                matchId: matchId,
+                course: selectedCourse,
+                scores: viewModel.scores.map { Int($0) }
+            )
         }
     }
     
@@ -249,12 +326,12 @@ struct ScoreVerificationView: View {
             Button(action: {
                 Task {
                     await viewModel.submitScores(matchId: matchId)
-                    dismiss()
+                    isShowingMatchReview = true
                 }
             }) {
                 HStack {
                     Image(systemName: "checkmark.circle.fill")
-                    Text("Submit Scores")
+                    Text("Confirm and Submit")
                 }
                 .padding()
                 .frame(maxWidth: .infinity)
@@ -282,6 +359,45 @@ struct ScoreVerificationView: View {
         }
     }
     
+    private var manualScoreEntryCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Manual Score Entry")
+                .font(.headline)
+                .foregroundColor(AppColors.primaryNavy)
+            
+            Text("Enter your scores separated by commas (e.g., 5,3,5,5,5,6,5,4,5,6,5,4,2,4,5,4,3,5)")
+                .font(.subheadline)
+                .foregroundColor(AppColors.subtleGray)
+            
+            TextField("Enter scores", text: $viewModel.manualScoreInput)
+                .padding()
+                .background(Color.gray.opacity(0.1))
+                .cornerRadius(8)
+                .keyboardType(.numbersAndPunctuation)
+            
+            Button(action: {
+                viewModel.setManualScores(viewModel.manualScoreInput)
+            }) {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                    Text("Apply Manual Scores")
+                }
+                .padding()
+                .frame(maxWidth: .infinity)
+            }
+            .navyButton()
+            
+            if viewModel.scores.count < 18 {
+                Text("Note: OCR detected \(viewModel.scores.count) scores, but a full round should have 18 scores.")
+                    .font(.caption)
+                    .foregroundColor(AppColors.highlightBlue)
+            }
+        }
+        .padding()
+        .cardStyle()
+        .padding(.horizontal)
+    }
+    
     private var debugCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -291,6 +407,14 @@ struct ScoreVerificationView: View {
                 
                 Spacer()
                 
+                Button(action: {
+                    UIPasteboard.general.string = viewModel.copyableDebugText
+                }) {
+                    Image(systemName: "doc.on.doc")
+                        .foregroundColor(AppColors.highlightBlue)
+                }
+                .padding(.horizontal, 8)
+                
                 Button(action: { viewModel.exportDebugInfo() }) {
                     Image(systemName: "square.and.arrow.up")
                         .foregroundColor(AppColors.highlightBlue)
@@ -298,11 +422,30 @@ struct ScoreVerificationView: View {
             }
             
             ScrollView {
-                Text(viewModel.debugInfo)
-                    .font(.system(.footnote, design: .monospaced))
-                    .foregroundColor(AppColors.subtleGray)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(viewModel.debugInfo)
+                        .font(.system(.footnote, design: .monospaced))
+                        .foregroundColor(AppColors.subtleGray)
+                    
+                    Divider()
+                    
+                    Text("Tap the copy button above to copy all debug text to clipboard")
+                        .font(.caption)
+                        .foregroundColor(AppColors.highlightBlue)
+                        .padding(.vertical, 4)
+                    
+                    // Add a TextField that can be selected and copied
+                    TextEditor(text: .constant(viewModel.copyableDebugText))
+                        .font(.system(.footnote, design: .monospaced))
+                        .foregroundColor(AppColors.subtleGray)
+                        .frame(height: 100)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(AppColors.subtleGray.opacity(0.3), lineWidth: 1)
+                        )
+                }
             }
-            .frame(maxHeight: 200)
+            .frame(maxHeight: 350)
         }
         .padding()
         .cardStyle()

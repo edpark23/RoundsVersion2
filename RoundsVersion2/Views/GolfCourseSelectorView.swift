@@ -1,174 +1,411 @@
 import SwiftUI
 
-struct GolfCourseSelectorView: View {
-    @StateObject private var viewModel = GolfCourseSelectorViewModel()
-    @Environment(\.dismiss) private var dismiss
-    @State private var selectedCourseId: String?
-    @State private var isSelectingCourse = false
-    @State private var searchText = ""
-    var onCourseSelected: ((GolfCourseSelectorViewModel.GolfCourseDetails) -> Void)?
+// Keep the FullScreenCover enum for navigation flow
+enum FullScreenCover: Identifiable {
+    case roundSetupFlow(RoundSetupFlowCoordinator)
     
-    var filteredCourses: [GolfCourseSelectorViewModel.GolfCourseDetails] {
-        if searchText.isEmpty {
-            return viewModel.courses
-        } else {
-            return viewModel.courses.filter { course in
-                course.clubName.localizedCaseInsensitiveContains(searchText) ||
-                course.courseName.localizedCaseInsensitiveContains(searchText) ||
-                course.city.localizedCaseInsensitiveContains(searchText) ||
-                course.state.localizedCaseInsensitiveContains(searchText)
+    var id: String {
+        switch self {
+        case .roundSetupFlow:
+            return "roundSetupFlow"
+        }
+    }
+}
+
+struct FullScreenCoverModifier: ViewModifier {
+    @Binding var item: FullScreenCover?
+    
+    func body(content: Content) -> some View {
+        content
+            .fullScreenCover(item: $item) { cover in
+                switch cover {
+                case .roundSetupFlow(let coordinator):
+                    coordinator
+                }
+            }
+    }
+}
+
+extension View {
+    func fullScreenCover(item: Binding<FullScreenCover?>) -> some View {
+        self.modifier(FullScreenCoverModifier(item: item))
+    }
+}
+
+struct GolfCourseSelectorView: View {
+    @ObservedObject var viewModel: GolfCourseSelectorViewModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var searchText = ""
+    @State private var selectedFilter = "Nearby"
+    @State private var selectedCourse: GolfCourseSelectorViewModel.GolfCourseDetails?
+    @State private var showingTeeSelection = false
+    @State private var fullScreenCover: FullScreenCover?
+    @State private var loadedTees: [GolfCourseSelectorViewModel.TeeDetails] = []
+    var onCourseAndTeeSelected: ((GolfCourseSelectorViewModel.GolfCourseDetails, GolfCourseSelectorViewModel.TeeDetails, RoundSettings) -> Void)?
+    
+    // Keep existing initializers for compatibility
+    init(completion: @escaping (GolfCourseSelectorViewModel.GolfCourseDetails, GolfCourseSelectorViewModel.TeeDetails) -> Void) {
+        self.viewModel = GolfCourseSelectorViewModel()
+        self.onCourseAndTeeSelected = { course, tee, settings in
+            completion(course, tee)
+        }
+    }
+    
+    init(viewModel: GolfCourseSelectorViewModel, 
+         onCourseAndTeeSelected: ((GolfCourseSelectorViewModel.GolfCourseDetails, GolfCourseSelectorViewModel.TeeDetails, RoundSettings) -> Void)? = nil) {
+        self.viewModel = viewModel
+        self.onCourseAndTeeSelected = onCourseAndTeeSelected
+    }
+    
+    var body: some View {
+        ZStack {
+            // Main background
+            Color(red: 0.95, green: 0.95, blue: 0.97).ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                // Navy blue header
+                ZStack {
+                    Color(red: 0.0, green: 75/255, blue: 143/255).ignoresSafeArea(edges: .top)
+                    
+                    VStack(spacing: 0) {
+                        // Status bar space
+                        Color.clear.frame(height: 44)
+                        
+                        // Navigation bar
+                        HStack {
+                            Button(action: {
+                                dismiss()
+                            }) {
+                                Image(systemName: "chevron.left")
+                                    .foregroundColor(.white)
+                                    .font(.system(size: 20, weight: .semibold))
+                            }
+                            
+                            Spacer()
+                            
+                            Text("SELECT COURSE")
+                                .foregroundColor(.white)
+                                .font(.system(size: 20, weight: .bold))
+                                .tracking(0.5)
+                            
+                            Spacer()
+                            
+                            Button(action: {
+                                // Profile action
+                            }) {
+                                Image(systemName: "person.crop.circle")
+                                    .foregroundColor(.white)
+                                    .font(.system(size: 20))
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 10)
+                    }
+                }
+                .frame(height: 90)
+                
+                // Search bar
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.gray.opacity(0.6))
+                        .font(.system(size: 16))
+                        .padding(.leading, 14)
+                    
+                    TextField("Search course by name", text: $searchText)
+                        .font(.system(size: 16))
+                        .padding(.vertical, 12)
+                    
+                    Spacer()
+                    
+                    Image(systemName: "mic.fill")
+                        .foregroundColor(.gray.opacity(0.6))
+                        .font(.system(size: 16))
+                        .padding(.trailing, 14)
+                }
+                .background(Color(UIColor.systemGray6))
+                .cornerRadius(25)
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                
+                // Filter tabs
+                ZStack {
+                    // Background capsule
+                    Capsule()
+                        .fill(Color(UIColor.systemGray6))
+                        .frame(height: 40)
+                    
+                    HStack(spacing: 0) {
+                        ForEach(["Nearby", "Recently Played", "My Courses"], id: \.self) { filter in
+                            Button(action: {
+                                selectedFilter = filter
+                            }) {
+                                Text(filter)
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(selectedFilter == filter ? .white : .black)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 40)
+                                    .background(
+                                        selectedFilter == filter ?
+                                        Capsule().fill(Color(red: 0.3, green: 0.5, blue: 0.7)) :
+                                        Capsule().fill(Color.clear)
+                                    )
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 3)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                
+                // Course list
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(viewModel.courses, id: \.id) { course in
+                            Button(action: {
+                                selectedCourse = course
+                                loadTees(for: course)
+                            }) {
+                                CourseCard(
+                                    courseName: course.clubName,
+                                    distance: mockDistance(),
+                                    location: "\(course.city), \(course.state)",
+                                    rating: mockRating(),
+                                    isSelected: selectedCourse?.id == course.id
+                                )
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            .padding(.horizontal, 16)
+                        }
+                    }
+                    .padding(.top, 16)
+                    .padding(.bottom, 90) // Space for the continue button
+                }
+                
+                Spacer()
+            }
+            
+            // Continue button fixed at bottom
+            VStack {
+                Spacer()
+                
+                Button(action: {
+                    if selectedCourse != nil {
+                        showingTeeSelection = true
+                    }
+                }) {
+                    Text("CONTINUE")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(
+                            Capsule()
+                                .fill(Color(red: 0.0, green: 75/255, blue: 143/255))
+                        )
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 20)
+                }
+                .disabled(selectedCourse == nil)
+                .opacity(selectedCourse == nil ? 0.7 : 1.0)
+            }
+        }
+        .navigationBarHidden(true)
+        .navigationDestination(isPresented: $showingTeeSelection) {
+            if let course = selectedCourse {
+                TeeSelectionView(
+                    course: course,
+                    tees: loadedTees,
+                    onTeeSelected: { selectedTee in
+                        fullScreenCover = .roundSetupFlow(
+                            RoundSetupFlowCoordinator(
+                                course: course, 
+                                tee: selectedTee,
+                                onComplete: { course, tee, settings in
+                                    onCourseAndTeeSelected?(course, tee, settings)
+                                    fullScreenCover = nil
+                                    dismiss()
+                                },
+                                onCancel: {
+                                    fullScreenCover = nil
+                                }
+                            )
+                        )
+                    }
+                )
+            }
+        }
+        .fullScreenCover(item: $fullScreenCover)
+        .onAppear {
+            // Load some sample courses if empty
+            if viewModel.courses.isEmpty {
+                loadSampleCourses()
             }
         }
     }
     
+    private func loadTees(for course: GolfCourseSelectorViewModel.GolfCourseDetails) {
+        // Sample tees data
+        loadedTees = [
+            .init(
+                type: "male",
+                teeName: "Blue", 
+                courseRating: 72.5,
+                slopeRating: 132,
+                totalYards: 6832,
+                parTotal: 72,
+                holes: []
+            ),
+            .init(
+                type: "male",
+                teeName: "White", 
+                courseRating: 71.2,
+                slopeRating: 128,
+                totalYards: 6435,
+                parTotal: 72,
+                holes: []
+            ),
+            .init(
+                type: "female",
+                teeName: "Red",
+                courseRating: 69.8, 
+                slopeRating: 120,
+                totalYards: 5790,
+                parTotal: 72,
+                holes: []
+            )
+        ]
+    }
+    
+    // Helper function to generate mock distance
+    private func mockDistance() -> String {
+        let distance = Double.random(in: 3.0...9.0)
+        return String(format: "%.1f miles", distance)
+    }
+    
+    // Helper function to generate mock rating
+    private func mockRating() -> Double {
+        return Double(Int.random(in: 38...48)) / 10.0 // Generates 3.8 to 4.8
+    }
+    
+    // Load sample courses for preview/testing
+    private func loadSampleCourses() {
+        // This would normally fetch from a database
+        if viewModel.courses.isEmpty {
+            let sampleCourses = [
+                GolfCourseSelectorViewModel.GolfCourseDetails(
+                    id: "1",
+                    clubName: "Gotham Golf Club",
+                    courseName: "Gotham Course",
+                    city: "Augusta City",
+                    state: "NY",
+                    tees: []
+                ),
+                GolfCourseSelectorViewModel.GolfCourseDetails(
+                    id: "2",
+                    clubName: "Augusta Links",
+                    courseName: "Augusta Course",
+                    city: "Augusta City",
+                    state: "NY",
+                    tees: []
+                ),
+                GolfCourseSelectorViewModel.GolfCourseDetails(
+                    id: "3",
+                    clubName: "National Port Club",
+                    courseName: "National Course",
+                    city: "Long Brook",
+                    state: "NY",
+                    tees: []
+                ),
+                GolfCourseSelectorViewModel.GolfCourseDetails(
+                    id: "4",
+                    clubName: "West Port Golf Course",
+                    courseName: "West Port Course",
+                    city: "Long Brook",
+                    state: "NY",
+                    tees: []
+                ),
+                GolfCourseSelectorViewModel.GolfCourseDetails(
+                    id: "5",
+                    clubName: "Van Houston Interlinks Golf Course",
+                    courseName: "Van Houston Course",
+                    city: "Long Brook",
+                    state: "NY",
+                    tees: []
+                )
+            ]
+            
+            // In a real implementation, this would be done through the ViewModel properly
+            // For demo purposes only:
+            viewModel.courses = sampleCourses
+        }
+    }
+}
+
+// Course card view that matches the design in the image
+struct CourseCard: View {
+    let courseName: String
+    let distance: String
+    let location: String
+    let rating: Double
+    let isSelected: Bool
+    
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // Search bar
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(AppColors.subtleGray)
-                    
-                    TextField("Search courses...", text: $searchText)
-                        .autocapitalization(.none)
-                        .disableAutocorrection(true)
-                    
-                    if !searchText.isEmpty {
-                        Button(action: {
-                            searchText = ""
-                        }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(AppColors.subtleGray)
-                        }
-                    }
-                }
-                .padding()
-                .background(Color(.systemGray6))
-                .cornerRadius(10)
-                .padding(.horizontal)
-                .padding(.top)
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                // Course name
+                Text(courseName)
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundColor(.black)
                 
-                // Content area
-                ZStack {
-                    AppColors.backgroundWhite
-                        .ignoresSafeArea()
+                // Distance and location
+                HStack(spacing: 4) {
+                    Text(distance)
+                        .font(.system(size: 13))
+                        .foregroundColor(.gray)
                     
-                    if viewModel.isLoading && viewModel.courses.isEmpty {
-                        // Initial loading state
-                        VStack {
-                            ProgressView()
-                                .scaleEffect(1.5)
-                            Text("Loading courses...")
-                                .foregroundColor(AppColors.subtleGray)
-                                .padding(.top)
-                        }
-                    } else if viewModel.courses.isEmpty {
-                        // No courses available
-                        VStack {
-                            Image(systemName: "flag.fill")
-                                .font(.system(size: 50))
-                                .foregroundColor(AppColors.subtleGray)
-                            Text("No courses available")
-                                .font(.headline)
-                                .foregroundColor(AppColors.subtleGray)
-                                .padding(.top)
-                            
-                            if let error = viewModel.error {
-                                Text(error)
-                                    .font(.caption)
-                                    .foregroundColor(.red)
-                                    .multilineTextAlignment(.center)
-                                    .padding()
-                            }
-                        }
-                    } else if filteredCourses.isEmpty {
-                        // No search results
-                        VStack {
-                            Image(systemName: "magnifyingglass")
-                                .font(.system(size: 50))
-                                .foregroundColor(AppColors.subtleGray)
-                            Text("No courses match your search")
-                                .font(.headline)
-                                .foregroundColor(AppColors.subtleGray)
-                                .padding(.top)
-                        }
-                    } else {
-                        // Course list
-                        List {
-                            ForEach(filteredCourses) { course in
-                                Button(action: {
-                                    selectedCourseId = course.id
-                                    isSelectingCourse = true
-                                    
-                                    Task {
-                                        await viewModel.selectCourse(course)
-                                        if let selectedCourse = viewModel.selectedCourse {
-                                            onCourseSelected?(selectedCourse)
-                                            dismiss()
-                                        }
-                                    }
-                                }) {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text(course.clubName)
-                                                .font(.headline)
-                                                .foregroundColor(AppColors.primaryNavy)
-                                            Text(course.courseName)
-                                                .font(.subheadline)
-                                                .foregroundColor(AppColors.subtleGray)
-                                            Text("\(course.city), \(course.state)")
-                                                .font(.caption)
-                                                .foregroundColor(AppColors.subtleGray)
-                                        }
-                                        
-                                        Spacer()
-                                        
-                                        if selectedCourseId == course.id && isSelectingCourse {
-                                            ProgressView()
-                                                .scaleEffect(1.2)
-                                        } else {
-                                            Image(systemName: "chevron.right")
-                                                .foregroundColor(AppColors.subtleGray)
-                                        }
-                                    }
-                                }
-                                .listRowBackground(Color.white)
-                            }
-                            
-                            // Load more indicator
-                            if viewModel.hasMoreCourses {
-                                HStack {
-                                    Spacer()
-                                    ProgressView()
-                                    Spacer()
-                                }
-                                .onAppear {
-                                    Task {
-                                        await viewModel.loadMoreCoursesIfNeeded()
-                                    }
-                                }
-                                .listRowBackground(Color.white)
-                            }
-                        }
-                        .listStyle(PlainListStyle())
-                    }
+                    Text("|")
+                        .font(.system(size: 13))
+                        .foregroundColor(.gray)
+                    
+                    Text(location)
+                        .font(.system(size: 13))
+                        .foregroundColor(.gray)
+                }
+                
+                // Rating
+                HStack(spacing: 4) {
+                    Text(String(format: "%.1f", rating))
+                        .font(.system(size: 13))
+                        .foregroundColor(.gray)
+                    
+                    Image(systemName: "star.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(.yellow)
                 }
             }
-            .navigationTitle("Select Course")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                    .foregroundColor(AppColors.primaryNavy)
-                }
-            }
-            .onAppear {
-                Task {
-                    await viewModel.loadCourses()
+            
+            Spacer()
+            
+            // Selection circle
+            ZStack {
+                Circle()
+                    .stroke(isSelected ? Color(red: 0.0, green: 75/255, blue: 143/255) : Color.gray.opacity(0.6), lineWidth: 1.5)
+                    .frame(width: 26, height: 26)
+                
+                if isSelected {
+                    Circle()
+                        .fill(Color(red: 0.0, green: 75/255, blue: 143/255))
+                        .frame(width: 18, height: 18)
                 }
             }
         }
+        .padding(.vertical, 14)
+        .padding(.horizontal, 14)
+        .background(Color.white)
+        .cornerRadius(10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(isSelected ? Color(red: 0.0, green: 75/255, blue: 143/255) : Color.clear, lineWidth: isSelected ? 1.5 : 0)
+        )
     }
 } 

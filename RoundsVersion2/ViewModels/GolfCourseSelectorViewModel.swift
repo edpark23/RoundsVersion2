@@ -113,10 +113,11 @@ class GolfCourseSelectorViewModel: ObservableObject {
     
     // New method to load full course details when needed
     func loadCourseDetails(for courseId: String) async -> GolfCourseDetails? {
+        print("Loading course details for ID: \(courseId)")
         do {
             let document = try await db.collection("courses").document(courseId).getDocument()
             guard document.exists, let data = document.data() else {
-                print("Course document not found: \(courseId)")
+                print("⚠️ Course document not found: \(courseId)")
                 return nil
             }
             
@@ -127,7 +128,8 @@ class GolfCourseSelectorViewModel: ObservableObject {
                   let state = location["state"] as? String,
                   let tees = data["tees"] as? [String: [[String: Any]]]
             else { 
-                print("Failed to parse course details for document: \(courseId)")
+                print("⚠️ Failed to parse course details for document: \(courseId)")
+                print("Data received: \(data)")
                 return nil 
             }
             
@@ -135,15 +137,19 @@ class GolfCourseSelectorViewModel: ObservableObject {
             
             // Process male tees
             if let maleTees = tees["male"] {
+                print("Processing \(maleTees.count) male tees")
                 let processedTees = processTees(maleTees, type: "male")
                 teeDetails.append(contentsOf: processedTees)
             }
             
             // Process female tees
             if let femaleTees = tees["female"] {
+                print("Processing \(femaleTees.count) female tees")
                 let processedTees = processTees(femaleTees, type: "female")
                 teeDetails.append(contentsOf: processedTees)
             }
+            
+            print("Finished processing tees, total: \(teeDetails.count)")
             
             return GolfCourseDetails(
                 id: document.documentID,
@@ -154,7 +160,7 @@ class GolfCourseSelectorViewModel: ObservableObject {
                 tees: teeDetails
             )
         } catch {
-            print("Error loading course details: \(error)")
+            print("⚠️ Error loading course details: \(error)")
             return nil
         }
     }
@@ -216,12 +222,80 @@ class GolfCourseSelectorViewModel: ObservableObject {
     func selectCourse(_ course: GolfCourseDetails) async {
         // If the course has no tees, load the full details
         if course.tees.isEmpty {
+            print("Course \(course.clubName) has no tees, loading details")
             if let fullCourse = await loadCourseDetails(for: course.id) {
+                print("Loaded full course details: \(fullCourse.clubName) with \(fullCourse.tees.count) tees")
                 selectedCourse = fullCourse
                 return
+            } else {
+                print("⚠️ Failed to load course details for \(course.id)")
             }
+        } else {
+            print("Course \(course.clubName) already has \(course.tees.count) tees, using existing data")
         }
         
         selectedCourse = course
+    }
+    
+    // Helper method to get sample tees when no real tees are available
+    func getSampleTees() -> [TeeDetails] {
+        print("Generating sample tees")
+        return [
+            TeeDetails(
+                type: "male",
+                teeName: "Black",
+                courseRating: 76.10,
+                slopeRating: 141,
+                totalYards: 7206,
+                parTotal: 72,
+                holes: []
+            ),
+            TeeDetails(
+                type: "male",
+                teeName: "Gold",
+                courseRating: 73.80,
+                slopeRating: 137,
+                totalYards: 6914,
+                parTotal: 72,
+                holes: []
+            ),
+            TeeDetails(
+                type: "male",
+                teeName: "White",
+                courseRating: 71.70,
+                slopeRating: 131,
+                totalYards: 6675,
+                parTotal: 72,
+                holes: []
+            ),
+            TeeDetails(
+                type: "male",
+                teeName: "Green",
+                courseRating: 69.83,
+                slopeRating: 125,
+                totalYards: 6432,
+                parTotal: 72,
+                holes: []
+            ),
+            TeeDetails(
+                type: "male",
+                teeName: "Red",
+                courseRating: 67.48,
+                slopeRating: 120,
+                totalYards: 6168,
+                parTotal: 72,
+                holes: []
+            )
+        ]
+    }
+    
+    func createMatch(course: GolfCourseDetails, tee: TeeDetails, settings: RoundSettings) {
+        print("Creating match with:")
+        print("Course: \(course.clubName) - \(course.courseName)")
+        print("Tee: \(tee.teeName) (\(tee.totalYards) yards)")
+        print("Settings: Concede putt: \(settings.concedePutt), Starting hole: \(settings.startingHole)")
+        
+        // Here we would typically integrate with Firebase
+        // For demo purposes, we'll just log the details
     }
 } 

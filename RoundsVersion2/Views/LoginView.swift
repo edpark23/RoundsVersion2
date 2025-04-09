@@ -37,8 +37,8 @@ struct LoginView: View {
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                             .padding(.horizontal)
                         
-                        if let error = viewModel.error {
-                            Text(error)
+                        if viewModel.error != nil {
+                            Text(viewModel.error ?? "")
                                 .foregroundColor(.red)
                                 .font(.caption)
                         }
@@ -48,18 +48,12 @@ struct LoginView: View {
                                 await viewModel.login(email: email, password: password)
                             }
                         }) {
-                            if viewModel.isLoading {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            } else {
-                                Text("Log In")
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                            }
+                            Text("Log In")
+                                .frame(maxWidth: .infinity)
+                                .padding()
                         }
                         .navyButton()
                         .padding(.horizontal)
-                        .disabled(viewModel.isLoading)
                         
                         Button(action: { showingSignUp = true }) {
                             Text("Don't have an account? Sign Up")
@@ -69,6 +63,11 @@ struct LoginView: View {
                     .padding(.top, 32)
                 }
                 .padding()
+                
+                if viewModel.isLoading {
+                    ProgressView()
+                        .scaleEffect(1.5)
+                }
             }
             .navigationBarHidden(true)
             .sheet(isPresented: $showingSignUp) {
@@ -79,6 +78,8 @@ struct LoginView: View {
     }
 }
 
-#Preview {
-    LoginView()
+struct LoginView_Previews: PreviewProvider {
+    static var previews: some View {
+        LoginView()
+    }
 } 

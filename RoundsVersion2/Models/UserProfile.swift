@@ -7,6 +7,7 @@ struct UserProfile: Identifiable, Hashable {
     let elo: Int
     let createdAt: Date
     let isAdmin: Bool
+    let profilePictureURL: String?
     
     var initials: String {
         let components = fullName.split(separator: " ")

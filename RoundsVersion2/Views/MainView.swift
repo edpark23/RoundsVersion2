@@ -26,9 +26,12 @@ struct MainView: View {
         }
         .accentColor(AppColors.primaryNavy)
         .primaryBackground()
+        .environmentObject(viewModel)
     }
 }
 
-#Preview {
-    MainView()
+struct MainView_Previews: PreviewProvider {
+    static var previews: some View {
+        MainView()
+    }
 } 

@@ -6,66 +6,11 @@ struct AdminView: View {
     
     var body: some View {
         NavigationStack {
-            VStack {
+            Group {
                 if mainViewModel.userProfile?.isAdmin == true {
-                    List {
-                        Section("Golf Course Data") {
-                            NavigationLink(destination: CourseImportView()) {
-                                Label("Import Golf Courses", systemImage: "arrow.down.doc")
-                            }
-                            
-                            if viewModel.isLoading {
-                                HStack {
-                                    Text("Loading courses...")
-                                    Spacer()
-                                    ProgressView()
-                                }
-                            } else if !viewModel.courses.isEmpty {
-                                Text("\(viewModel.courses.count) courses stored")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-                        }
-                        
-                        if !viewModel.courses.isEmpty {
-                            Section("Stored Courses") {
-                                ForEach(viewModel.courses) { course in
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(course.clubName)
-                                            .font(.headline)
-                                        if !course.courseName.isEmpty {
-                                            Text(course.courseName)
-                                                .font(.subheadline)
-                                                .foregroundColor(.secondary)
-                                        }
-                                        Text("\(course.city), \(course.state)")
-                                            .font(.subheadline)
-                                            .foregroundColor(.gray)
-                                        Text("Last updated: \(course.lastUpdated.formatted())")
-                                            .font(.caption2)
-                                            .foregroundColor(.gray)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .listStyle(InsetGroupedListStyle())
-                    .refreshable {
-                        await viewModel.loadStoredCourses()
-                    }
-                    
-                    if let error = viewModel.error {
-                        Text(error)
-                            .foregroundColor(.red)
-                            .font(.caption)
-                            .padding()
-                    }
+                    adminContent
                 } else {
-                    ContentUnavailableView(
-                        "Admin Access Required",
-                        systemImage: "lock.fill",
-                        description: Text("You need admin privileges to access this section.")
-                    )
+                    noAccessContent
                 }
             }
             .navigationTitle("Admin")
@@ -73,5 +18,76 @@ struct AdminView: View {
                 await viewModel.loadStoredCourses()
             }
         }
+    }
+    
+    // MARK: - Component Views
+    
+    private var adminContent: some View {
+        VStack {
+            coursesList
+            
+            if let error = viewModel.error {
+                Text(error)
+                    .foregroundColor(.red)
+                    .font(.caption)
+                    .padding()
+            }
+        }
+    }
+    
+    private var coursesList: some View {
+        List {
+            coursesDataSection
+            storedCoursesSection
+        }
+        .listStyle(InsetGroupedListStyle())
+    }
+    
+    private var coursesDataSection: some View {
+        Section("Golf Course Data") {
+            NavigationLink(destination: CourseImportView()) {
+                Label("Import Golf Courses", systemImage: "arrow.down.doc")
+            }
+            
+            if !viewModel.courses.isEmpty {
+                Text("\(viewModel.courses.count) courses stored")
+                    .font(.caption)
+                    .foregroundColor(.gray)
+            }
+        }
+    }
+    
+    private var storedCoursesSection: some View {
+        Section("Stored Courses") {
+            ForEach(viewModel.courses, id: \.id) { course in
+                courseRow(course: course)
+            }
+        }
+    }
+    
+    private func courseRow(course: AdminViewModel.StoredCourse) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(course.clubName)
+                .font(.headline)
+            if !course.courseName.isEmpty {
+                Text(course.courseName)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            Text("\(course.city), \(course.state)")
+                .font(.subheadline)
+                .foregroundColor(.gray)
+            Text("Last updated: \(course.lastUpdated.formatted())")
+                .font(.caption2)
+                .foregroundColor(.gray)
+        }
+    }
+    
+    private var noAccessContent: some View {
+        ContentUnavailableView(
+            "Admin Access Required",
+            systemImage: "lock.fill",
+            description: Text("You need admin privileges to access this section.")
+        )
     }
 } 

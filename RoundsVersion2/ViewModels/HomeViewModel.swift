@@ -1,6 +1,7 @@
 import Foundation
-import FirebaseFirestore
+import Firebase
 import FirebaseAuth
+import FirebaseFirestore
 import SwiftUI
 
 @MainActor
@@ -54,11 +55,16 @@ class HomeViewModel: ObservableObject {
     @Published var error: String?
     @Published var playerStats = PlayerStats()
     @Published var userElo: Int = 1200 // Default ELO
+    @Published var user: User?
+    @Published var roundInProgress: Bool = false
+    @Published var playerProfile: PlayerProfile?
+    @Published var errorMessage: String?
     
     private let db = Firestore.firestore()
     
     init() {
         fetchRecentMatches()
+        loadPlayerProfile()
     }
     
     func fetchRecentMatches() {
@@ -79,7 +85,8 @@ class HomeViewModel: ObservableObject {
                     email: "john@example.com",
                     elo: 1200,
                     createdAt: Date(),
-                    isAdmin: false
+                    isAdmin: false,
+                    profilePictureURL: nil
                 )
             ),
             Match(
@@ -96,7 +103,8 @@ class HomeViewModel: ObservableObject {
                     email: "jane@example.com",
                     elo: 1300,
                     createdAt: Date(),
-                    isAdmin: false
+                    isAdmin: false,
+                    profilePictureURL: nil
                 )
             )
         ]
@@ -238,48 +246,24 @@ class HomeViewModel: ObservableObject {
         )
     }
     
-    func createMatch(with course: GolfCourseSelectorViewModel.GolfCourseDetails) async throws {
-        guard let userId = Auth.auth().currentUser?.uid else {
-            self.error = "User not authenticated"
-            return
-        }
+    func createMatch(course: GolfCourseSelectorViewModel.GolfCourseDetails, tee: GolfCourseSelectorViewModel.TeeDetails, settings: RoundSettings) {
+        print("Creating match with:")
+        print("Course: \(course.clubName) - \(course.courseName)")
+        print("Tee: \(tee.teeName) (\(tee.totalYards) yards)")
+        print("Settings: Concede putt: \(settings.concedePutt), Starting hole: \(settings.startingHole)")
         
-        self.isLoading = true
+        // Here we would typically save the match to a database or call an API
+        // For demo purposes, we'll just set the roundInProgress flag
+        roundInProgress = true
+    }
+    
+    func loadPlayerProfile() {
+        isLoading = true
         
-        let matchData: [String: Any] = [
-            "courseName": course.courseName,
-            "clubName": course.clubName,
-            "courseId": course.id,
-            "date": Timestamp(date: Date()),
-            "players": [userId],
-            "status": "active",
-            "createdBy": userId,
-            "createdAt": FieldValue.serverTimestamp(),
-            "scores": NSNull()
-        ]
-        
-        do {
-            let docRef = try await db.collection("matches").addDocument(data: matchData)
-            let scores: [Int]? = nil
-            let opponent: UserProfile? = nil
-            
-            let newMatch = Match(
-                id: docRef.documentID,
-                courseName: course.courseName,
-                clubName: course.clubName,
-                date: Date(),
-                players: [userId],
-                status: "active",
-                scores: scores,
-                opponent: opponent
-            )
-            
-            self.activeMatches.append(newMatch)
+        // For demo purposes, create a sample user
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.playerProfile = PlayerProfile(id: "123", name: "John Doe", handicap: 12.5, profileImage: "profile-placeholder")
             self.isLoading = false
-        } catch {
-            self.error = "Failed to create match: \(error.localizedDescription)"
-            self.isLoading = false
-            throw error
         }
     }
 } 

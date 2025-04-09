@@ -1,6 +1,7 @@
 import Foundation
-import FirebaseFirestore
+import Firebase
 import FirebaseAuth
+import FirebaseFirestore
 
 @MainActor
 class MatchViewModel: ObservableObject {
@@ -35,7 +36,8 @@ class MatchViewModel: ObservableObject {
                     email: data["email"] as? String ?? "",
                     elo: data["elo"] as? Int ?? 1200,
                     createdAt: (data["createdAt"] as? Timestamp)?.dateValue() ?? Date(),
-                    isAdmin: data["isAdmin"] as? Bool ?? false
+                    isAdmin: data["isAdmin"] as? Bool ?? false,
+                    profilePictureURL: data["profilePictureURL"] as? String
                 )
                 currentUserProfile = userProfile
             }
@@ -147,13 +149,31 @@ class MatchViewModel: ObservableObject {
             }
     }
     
-    func updateSelectedCourse(course: GolfCourseSelectorViewModel.GolfCourseDetails) async throws {
-        let updateData: [String: Any] = [
+    func updateSelectedCourse(course: GolfCourseSelectorViewModel.GolfCourseDetails, tee: GolfCourseSelectorViewModel.TeeDetails, settings: RoundSettings? = nil) async throws {
+        var updateData: [String: Any] = [
             "courseId": course.id,
             "courseName": course.clubName,
             "courseLocation": "\(course.city), \(course.state)",
+            "selectedTee": [
+                "name": tee.teeName,
+                "totalYards": tee.totalYards,
+                "courseRating": tee.courseRating,
+                "slopeRating": tee.slopeRating
+            ],
             "courseSelectedAt": FieldValue.serverTimestamp()
         ]
+        
+        // Add round settings if provided
+        if let settings = settings {
+            updateData["roundSettings"] = [
+                "concedePutt": settings.concedePutt,
+                "puttingAssist": settings.puttingAssist,
+                "greenSpeed": settings.greenSpeed,
+                "windStrength": settings.windStrength,
+                "mulligans": settings.mulligans,
+                "caddyAssist": settings.caddyAssist
+            ]
+        }
         
         try await db.collection("matches").document(matchId).updateData(updateData)
     }
