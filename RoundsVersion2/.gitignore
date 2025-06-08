@@ -1,0 +1,100 @@
+# Xcode
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/*.xcscheme
+!*.xcodeproj/*.xcworkspace
+*.xcworkspace/*
+!*.xcworkspace/contents.xcworkspacedata
+!*.xcworkspace/xcshareddata/
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Python server and dependencies
+easyocr_server/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# Swift Package Manager
+.build/
+Packages/
+Package.pins
+Package.resolved
+
+# iOS
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# iOS build artifacts
+*.xcuserdata/
+*.xcuserdatad/
+xcuserdata/
+
+# Logs and temp files
+*.log
+*.tmp
+*.temp
+
+# IDE files
+.vscode/
+.idea/
+
+# App Store Connect API Key
+AuthKey_*.p8
+
+# Backup files
+*.backup.*
+*.corrupted
+
+# Python virtual environments
+easyocr_server/venv/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Xcode
+*.pbxuser
+*.perspectivev3
+*.mode1v3
+*.mode2v3
+*~.nib 
