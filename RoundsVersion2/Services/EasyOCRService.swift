@@ -144,10 +144,10 @@ class EasyOCRService: ObservableObject {
     }
     
     // MARK: - Golf-specific score extraction
-    func extractGolfScores(from results: [OCRResult]) -> [String] {
+    func extractGolfScores(from results: [TextDetection]) -> [String] {
         // Extract potential golf scores (1-10, par values, etc.)
         let scores = results.compactMap { result -> String? in
-            let text = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let text = result.text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
             
             // Check if it's a valid golf score
             if let score = Int(text), score >= 1 && score <= 10 {
