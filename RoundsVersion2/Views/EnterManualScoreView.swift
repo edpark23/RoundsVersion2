@@ -16,74 +16,82 @@ struct EnterManualScoreView: View {
     
     // Initialize with proper course data
     init(matchId: String, selectedCourse: GolfCourseSelectorViewModel.GolfCourseDetails) {
+        print("🔴 EnterManualScoreView init called with matchId: \(matchId)")
+        print("🔴 Course: \(selectedCourse.clubName)")
         self.matchId = matchId
         self.selectedCourse = selectedCourse
         
-        // Process the course to ensure it has complete hole data
+        // Simplified course processing - just use the course as-is or create minimal sample data
         var processedCourse = selectedCourse
         
-        // If the course has no tees or the tees have no holes, create sample data
-        if processedCourse.tees.isEmpty || processedCourse.tees.first?.holes.isEmpty == true {
-            var tees = processedCourse.tees
-            
-            // If tees array is empty, add a default tee
-            if tees.isEmpty {
-                tees = [GolfCourseSelectorViewModel.TeeDetails(
-                    type: "male",
-                    teeName: "White",
-                    courseRating: 72.0,
-                    slopeRating: 130,
-                    totalYards: 6500,
-                    parTotal: 72,
-                    holes: []
-                )]
+        // Only create sample data if the course is completely empty
+        if processedCourse.tees.isEmpty {
+            print("🔴 Creating sample tee data")
+            let sampleHoles = (1...18).map { holeNumber in
+                GolfCourseSelectorViewModel.HoleDetails(
+                    number: holeNumber,
+                    par: 4, // Simple default
+                    yardage: 400,
+                    handicap: holeNumber
+                )
             }
             
-            // Update holes for each tee if they don't have any
-            tees = tees.map { tee in
-                var updatedTee = tee
-                
-                // If holes array is empty, create sample holes
-                if updatedTee.holes.isEmpty {
-                    var sampleHoles = [GolfCourseSelectorViewModel.HoleDetails]()
-                    
-                    // Create 18 sample holes with reasonable data
-                    for i in 1...18 {
-                        let par = [3, 4, 4, 5, 4, 3, 4, 5, 4, 4, 3, 4, 5, 4, 3, 4, 4, 5][i-1] // Common par distribution
-                        let yardage = par == 3 ? 170 + (i * 5) : par == 5 ? 520 + (i * 7) : 380 + (i * 6)
-                        let handicap = [13, 7, 3, 1, 15, 11, 9, 5, 17, 14, 8, 2, 4, 16, 12, 10, 6, 18][i-1] // Common handicap distribution
-                        
-                        sampleHoles.append(GolfCourseSelectorViewModel.HoleDetails(
-                            number: i,
-                            par: par,
-                            yardage: yardage,
-                            handicap: handicap
-                        ))
-                    }
-                    
-                    updatedTee = GolfCourseSelectorViewModel.TeeDetails(
-                        type: tee.type,
-                        teeName: tee.teeName,
-                        courseRating: tee.courseRating,
-                        slopeRating: tee.slopeRating,
-                        totalYards: tee.totalYards,
-                        parTotal: tee.parTotal,
-                        holes: sampleHoles
+            let sampleTee = GolfCourseSelectorViewModel.TeeDetails(
+                type: "male",
+                teeName: "White",
+                courseRating: 72.0,
+                slopeRating: 130,
+                totalYards: 7200,
+                parTotal: 72,
+                holes: sampleHoles
+            )
+            
+            processedCourse = GolfCourseSelectorViewModel.GolfCourseDetails(
+                id: selectedCourse.id,
+                clubName: selectedCourse.clubName.isEmpty ? "Sample Course" : selectedCourse.clubName,
+                courseName: selectedCourse.courseName,
+                city: selectedCourse.city,
+                state: selectedCourse.state,
+                tees: [sampleTee]
+            )
+        } else if processedCourse.tees.first?.holes.isEmpty == true {
+            print("🔴 Adding sample holes to existing tee")
+            // Just add sample holes if the tee exists but has no holes
+            var updatedTees = processedCourse.tees
+            if let firstTee = updatedTees.first {
+                let sampleHoles = (1...18).map { holeNumber in
+                    GolfCourseSelectorViewModel.HoleDetails(
+                        number: holeNumber,
+                        par: 4,
+                        yardage: 400,
+                        handicap: holeNumber
                     )
                 }
                 
-                return updatedTee
+                updatedTees[0] = GolfCourseSelectorViewModel.TeeDetails(
+                    type: firstTee.type,
+                    teeName: firstTee.teeName,
+                    courseRating: firstTee.courseRating,
+                    slopeRating: firstTee.slopeRating,
+                    totalYards: firstTee.totalYards,
+                    parTotal: firstTee.parTotal,
+                    holes: sampleHoles
+                )
+                
+                processedCourse = GolfCourseSelectorViewModel.GolfCourseDetails(
+                    id: processedCourse.id,
+                    clubName: processedCourse.clubName,
+                    courseName: processedCourse.courseName,
+                    city: processedCourse.city,
+                    state: processedCourse.state,
+                    tees: updatedTees
+                )
             }
-            
-            // Create the updated course with complete hole data
-            processedCourse = GolfCourseSelectorViewModel.GolfCourseDetails(
-                id: processedCourse.id,
-                clubName: processedCourse.clubName,
-                courseName: processedCourse.courseName,
-                city: processedCourse.city,
-                state: processedCourse.state,
-                tees: tees
-            )
+        }
+        
+        print("🔴 Processed course has \(processedCourse.tees.count) tees")
+        if let firstTee = processedCourse.tees.first {
+            print("🔴 First tee has \(firstTee.holes.count) holes")
         }
         
         // Use _processedCourse to initialize the @State property
@@ -166,6 +174,7 @@ struct EnterManualScoreView: View {
         .navigationBarHidden(true)
         .animation(.easeInOut, value: isEnteringScore)
         .onAppear {
+            print("🔴 EnterManualScoreView appeared")
             logCourseStructure()
         }
         .fullScreenCover(isPresented: $isShowingMatchReview) {
@@ -190,7 +199,10 @@ struct EnterManualScoreView: View {
     
     private var navigationBar: some View {
         HStack {
-            Button(action: { dismiss() }) {
+            Button(action: { 
+                print("🔴 EnterManualScoreView dismiss button tapped")
+                dismiss() 
+            }) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundColor(.white)

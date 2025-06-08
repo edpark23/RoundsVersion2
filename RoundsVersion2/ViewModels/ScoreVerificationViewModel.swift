@@ -70,17 +70,26 @@ class ScoreVerificationViewModel: ObservableObject {
             }
             
             if extractedScores.isEmpty {
-                error = "Could not detect scores. Please ensure the scorecard is clearly visible or enter scores manually."
+                error = "Could not detect scores. Please ensure the scorecard is clearly visible and well-lit, or enter scores manually."
                 showingManualScoreEntry = true
-            } else if extractedScores.count < 18 {
-                // If we found some scores but not all 18, show a warning
-                logDebug("⚠️ Only found \(extractedScores.count) scores, expected 18. Consider entering scores manually.", force: true)
+            } else if extractedScores.count < 9 {
+                // If we found very few scores, encourage manual entry
+                logDebug("⚠️ Only found \(extractedScores.count) scores, which is insufficient. Encouraging manual entry.", force: true)
                 scores = extractedScores
                 foundPlayerName = playerName
+                error = "Only detected \(extractedScores.count) scores. Please verify and complete manually."
+                showingManualScoreEntry = true
+            } else if extractedScores.count < 18 {
+                // If we found some scores but not all 18, show them but allow manual correction
+                logDebug("⚠️ Found \(extractedScores.count) scores, expected 18. Allowing manual correction.", force: true)
+                scores = extractedScores
+                foundPlayerName = playerName
+                error = "Detected \(extractedScores.count) out of 18 scores. Please verify and complete."
                 showingManualScoreEntry = true
             } else {
                 scores = extractedScores
                 foundPlayerName = playerName
+                logDebug("✅ Successfully detected all 18 scores!", force: true)
             }
         } catch {
             self.error = "Failed to process image: \(error.localizedDescription)"
@@ -163,7 +172,11 @@ class ScoreVerificationViewModel: ObservableObject {
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
         request.usesLanguageCorrection = false
-        request.minimumTextHeight = 0.01 // Adjust this value if needed
+        request.minimumTextHeight = 0.005 // Reduced from 0.01 to detect smaller text
+        request.automaticallyDetectsLanguage = true // Enable automatic language detection
+        
+        // Add custom words that might help with scorecard recognition
+        request.customWords = ["PAR", "HOLE", "TOTAL", "OUT", "IN", "HANDICAP", "YARDAGE"]
         
         try requestHandler.perform([request])
         
@@ -171,10 +184,29 @@ class ScoreVerificationViewModel: ObservableObject {
             throw NSError(domain: "ScoreVerification", code: 2, userInfo: [NSLocalizedDescriptionKey: "No text found"])
         }
         
+        // Log all detected text for debugging
+        logDebug("=== OCR DETECTED TEXT ===", force: true)
+        for (index, observation) in observations.enumerated() {
+            if let text = observation.topCandidates(1).first?.string {
+                let confidence = observation.topCandidates(1).first?.confidence ?? 0
+                logDebug("[\(index)] '\(text)' (confidence: \(String(format: "%.2f", confidence)))", force: true)
+            }
+        }
+        logDebug("Total observations: \(observations.count)", force: true)
+        
         return observations
     }
     
     private func processScorecard(from observations: [VNRecognizedTextObservation]) async throws -> (playerName: String?, scores: [Int], selectedObservation: VNRecognizedTextObservation?) {
+        // Try simple approach first - look for any sequence of numbers that could be scores
+        if let result = try await processSimpleScoreDetection(from: observations) {
+            let (playerName, simpleScores, observation) = result
+            if !simpleScores.isEmpty && simpleScores.count >= 8 {
+                logDebug("✅ Simple approach found \(simpleScores.count) scores: \(simpleScores)", force: true)
+                return (playerName, simpleScores, observation)
+            }
+        }
+        
         // First try the grid-based approach
         if let result = try await processGridBasedScorecard(from: observations) {
             let (playerName, gridScores, observation) = result
@@ -187,7 +219,7 @@ class ScoreVerificationViewModel: ObservableObject {
         // Try the column-based approach if grid-based doesn't find enough scores
         if let result = try await processColumnBasedScorecard(from: observations) {
             let (playerName, columnScores, observation) = result
-            if !columnScores.isEmpty && columnScores.count > 8 {
+            if !columnScores.isEmpty && columnScores.count > 6 { // Lowered threshold
                 logDebug("✅ Column-based approach found \(columnScores.count) scores: \(columnScores)", force: true)
                 return (playerName, columnScores, observation)
             }
@@ -196,7 +228,7 @@ class ScoreVerificationViewModel: ObservableObject {
         // Try the clustering approach if other approaches don't find enough scores
         if let result = try await processClusterBasedScorecard(from: observations) {
             let (playerName, clusterScores, observation) = result
-            if !clusterScores.isEmpty && clusterScores.count > 8 {
+            if !clusterScores.isEmpty && clusterScores.count > 6 { // Lowered threshold
                 logDebug("✅ Cluster-based approach found \(clusterScores.count) scores: \(clusterScores)", force: true)
                 return (playerName, clusterScores, observation)
             }
@@ -238,15 +270,41 @@ class ScoreVerificationViewModel: ObservableObject {
             }
         }
         
-        // If we didn't find the username, return early
+        // If we didn't find the username, try to find any row with many scores
+        if userNameRow == nil {
+            logDebug("⚠️ Could not find username '\(userName)', trying to find any row with scores", force: true)
+            
+            // Look for rows with the most scores
+            var rowScoreCounts: [(observation: VNRecognizedTextObservation, yPosition: CGFloat, scoreCount: Int, scores: [Int])] = []
+            
+            for row in sortedRows {
+                let scores = extractScores(from: row.text)
+                if scores.count >= 3 { // Look for rows with at least 3 scores
+                    rowScoreCounts.append((row.observation, row.yPosition, scores.count, scores))
+                    logDebug("Found row with \(scores.count) scores: '\(row.text)'", force: true)
+                }
+            }
+            
+            // Sort by score count (highest first)
+            rowScoreCounts.sort { $0.scoreCount > $1.scoreCount }
+            
+            // Use the row with the most scores
+            if let bestRow = rowScoreCounts.first, bestRow.scoreCount >= 6 {
+                logDebug("✅ Using row with most scores (\(bestRow.scoreCount)): \(bestRow.scores)", force: true)
+                return (nil, bestRow.scores, bestRow.observation)
+            } else {
+                logDebug("❌ No suitable rows found with enough scores", force: true)
+                return (nil, [], nil)
+            }
+        }
+        
         guard let userNameRow = userNameRow else {
-            logDebug("❌ Could not find username '\(userName)' in any text", force: true)
             return (nil, [], nil)
         }
         
-        // Use an extremely strict threshold for the same row (0.005 instead of 0.01)
-        let sameRowThreshold: CGFloat = 0.005
-        logDebug("🔍 Using strict row threshold: \(sameRowThreshold) for y-position: \(String(format: "%.5f", userNameRow.yPosition))", force: true)
+        // Use a more flexible threshold for the same row
+        let sameRowThreshold: CGFloat = 0.02 // Increased from 0.005 to be more flexible
+        logDebug("🔍 Using row threshold: \(sameRowThreshold) for y-position: \(String(format: "%.5f", userNameRow.yPosition))", force: true)
         
         // Find all text elements that are EXACTLY on the same row (very similar y-position)
         let sameRowTexts = sortedRows.filter { row in
@@ -312,17 +370,23 @@ class ScoreVerificationViewModel: ObservableObject {
         logDebug("=== Score Extraction ===")
         logDebug("Input text: '\(text)'")
         
-        // Clean the text first
+        // Clean the text first with more comprehensive OCR corrections
         var cleanedText = text
             .replacingOccurrences(of: "O", with: "0")
             .replacingOccurrences(of: "o", with: "0")
+            .replacingOccurrences(of: "Q", with: "0")  // Common OCR mistake
             .replacingOccurrences(of: "l", with: "1")
             .replacingOccurrences(of: "I", with: "1")
             .replacingOccurrences(of: "i", with: "1")
+            .replacingOccurrences(of: "|", with: "1")  // Common OCR mistake
             .replacingOccurrences(of: "S", with: "5")  // Common OCR mistake
+            .replacingOccurrences(of: "s", with: "5")  // Common OCR mistake
             .replacingOccurrences(of: "B", with: "8")  // Common OCR mistake
             .replacingOccurrences(of: "g", with: "9")  // Common OCR mistake
             .replacingOccurrences(of: "Z", with: "2")  // Common OCR mistake
+            .replacingOccurrences(of: "z", with: "2")  // Common OCR mistake
+            .replacingOccurrences(of: "G", with: "6")  // Common OCR mistake
+            .replacingOccurrences(of: "T", with: "7")  // Common OCR mistake in some fonts
         
         // Remove any text in parentheses and other non-score elements
         if let parenthesesRange = cleanedText.range(of: "\\([^)]+\\)", options: .regularExpression) {
@@ -456,6 +520,66 @@ class ScoreVerificationViewModel: ObservableObject {
         }
     }
     
+    private func processSimpleScoreDetection(from observations: [VNRecognizedTextObservation]) async throws -> (playerName: String?, scores: [Int], selectedObservation: VNRecognizedTextObservation?)? {
+        logDebug("🔍 Trying simple score detection approach", force: true)
+        
+        var allScores: [Int] = []
+        var allTextElements: [(observation: VNRecognizedTextObservation, text: String, x: CGFloat, y: CGFloat)] = []
+        
+        // Extract all text and look for any numbers that could be scores
+        for observation in observations {
+            if let recognizedText = observation.topCandidates(1).first {
+                let text = recognizedText.string
+                let x = observation.boundingBox.origin.x
+                let y = observation.boundingBox.origin.y
+                
+                allTextElements.append((observation, text, x, y))
+                
+                // Look for potential scores in this text
+                let potentialScores = extractScores(from: text)
+                allScores.append(contentsOf: potentialScores)
+                
+                if !potentialScores.isEmpty {
+                    logDebug("Found scores in text '\(text)': \(potentialScores)", force: true)
+                }
+            }
+        }
+        
+        // Try to get the username, but don't fail if we can't find it
+        let userName = try? await getCurrentUserName()
+        
+        // Look for rows with multiple scores (likely scorecard rows)
+        var scorecardRows: [(observation: VNRecognizedTextObservation, scores: [Int], count: Int)] = []
+        
+        for element in allTextElements {
+            let scores = extractScores(from: element.text)
+            if scores.count >= 3 { // Look for rows with at least 3 scores
+                scorecardRows.append((element.observation, scores, scores.count))
+                logDebug("Found scorecard row with \(scores.count) scores: \(scores)", force: true)
+            }
+        }
+        
+        // Sort by number of scores found (best first)
+        scorecardRows.sort { $0.count > $1.count }
+        
+        // If we found good scorecard rows, use the best one
+        if let bestRow = scorecardRows.first, bestRow.count >= 8 {
+            logDebug("✅ Simple approach using best row with \(bestRow.count) scores", force: true)
+            return (userName, bestRow.scores, bestRow.observation)
+        }
+        
+        // Fallback: if we have at least 9 total scores, use them
+        if allScores.count >= 9 {
+            // Take the first 18 scores (or all if less than 18)
+            let finalScores = Array(allScores.prefix(18))
+            logDebug("✅ Simple approach using \(finalScores.count) total scores found", force: true)
+            return (userName, finalScores, allTextElements.first?.observation)
+        }
+        
+        logDebug("❌ Simple approach found insufficient scores (\(allScores.count) total)", force: true)
+        return nil
+    }
+    
     private func processGridBasedScorecard(from observations: [VNRecognizedTextObservation]) async throws -> (playerName: String?, scores: [Int], selectedObservation: VNRecognizedTextObservation?)? {
         logDebug("🔍 Trying grid-based scorecard processing approach", force: true)
         
@@ -501,10 +625,10 @@ class ScoreVerificationViewModel: ObservableObject {
         
         for element in textElements {
             if let number = Int(element.text), number >= 1 && number <= 18 {
-                // Check if this is likely a hole number (typically at the top of the scorecard)
-                if element.y > 0.5 && element.y < 0.6 { // More precise range for hole numbers
+                // Check if this is likely a hole number (more flexible y-range)
+                if element.y > 0.3 { // More flexible range for hole numbers
                     holeElements.append((number, element.x, element.y))
-                    logDebug("🔢 Found hole number \(number) at x: \(String(format: "%.3f", element.x)), y: \(String(format: "%.3f", element.y))", force: true)
+                    logDebug("🔢 Found potential hole number \(number) at x: \(String(format: "%.3f", element.x)), y: \(String(format: "%.3f", element.y))", force: true)
                 }
             }
         }
@@ -709,8 +833,8 @@ class ScoreVerificationViewModel: ObservableObject {
         var holeColumns: [(holeNumber: Int, x: CGFloat)] = []
         for element in textElements {
             if let number = Int(element.text), number >= 1 && number <= 18 {
-                // Check if this is likely a hole number (typically at the top of the scorecard)
-                if element.y > 0.5 { // Assuming scorecard is in the upper half of the image
+                // Check if this is likely a hole number (more flexible positioning)
+                if element.y > 0.2 { // More flexible y-range for hole numbers
                     holeColumns.append((number, element.x))
                     logDebug("🔢 Found potential hole number \(number) at x: \(String(format: "%.3f", element.x)), y: \(String(format: "%.3f", element.y))", force: true)
                 }

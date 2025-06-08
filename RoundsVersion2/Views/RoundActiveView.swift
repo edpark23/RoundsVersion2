@@ -66,9 +66,44 @@ struct RoundActiveView: View {
     var body: some View {
         ZStack {
             // Background
-            Color(red: 0.95, green: 0.95, blue: 0.97).ignoresSafeArea()
+            VStack(spacing: 0) {
+                AppColors.primaryNavy
+                    .frame(height: 100)
+                Color(red: 0.95, green: 0.95, blue: 0.97)
+            }
+            .ignoresSafeArea()
             
             VStack(spacing: 0) {
+                // Custom Navigation Bar
+                HStack {
+                    Button(action: {
+                        dismiss()
+                    }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
+                    
+                    Spacer()
+                    
+                    Text("ROUNDS")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        // Profile action
+                    }) {
+                        Image(systemName: "person.crop.circle")
+                            .font(.system(size: 18))
+                            .foregroundColor(.white)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 50) // Account for status bar
+                .padding(.bottom, 12)
+                
                 // Timer banner
                 roundProgressBanner
                     .padding(.horizontal, 12)
@@ -100,7 +135,10 @@ struct RoundActiveView: View {
                 
                 VStack(spacing: 10) {
                     Button(action: {
+                        print("🟢 ENTER SCORE MANUALLY button tapped")
+                        print("🟢 Current showingManualScoreEntry state: \(showingManualScoreEntry)")
                         showingManualScoreEntry = true
+                        print("🟢 Updated showingManualScoreEntry state: \(showingManualScoreEntry)")
                     }) {
                         HStack {
                             Spacer()
@@ -142,30 +180,7 @@ struct RoundActiveView: View {
                 .padding(.bottom, 16)
             }
         }
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationTitle("ROUNDS")
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
-                }
-            }
-            
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    // Profile action
-                } label: {
-                    Image(systemName: "person.crop.circle")
-                        .font(.system(size: 18))
-                        .foregroundColor(.white)
-                }
-            }
-        }
-        .navigationBarBackground(backgroundColor: AppColors.primaryNavy)
+        .navigationBarHidden(true)
         .onAppear {
             startTimer()
         }
@@ -186,6 +201,9 @@ struct RoundActiveView: View {
                     matchId: matchId,
                     selectedCourse: course
                 )
+                .onAppear {
+                    print("🟡 fullScreenCover for manual score entry is being presented")
+                }
             }
         }
     }
