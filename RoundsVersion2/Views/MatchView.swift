@@ -72,7 +72,7 @@ struct MatchView: View {
                             
                             Spacer()
                             
-                            Text("MATCH CHAT")
+                            Text("SETUP ROUND")
                                 .font(.system(size: 16, weight: .bold)) // Reduced from 18
                                 .tracking(0.5)
                                 .foregroundColor(.white)

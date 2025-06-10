@@ -69,15 +69,6 @@ struct TeeSelectionView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button("Back") {
-                    debugMessage = "Back button pressed"
-                    print("🔵 NAVIGATION: Back button pressed")
-                    dismiss()
-                }
-            }
-        }
         .onChange(of: selectedTeeId) { _, newValue in
             if let teeId = newValue {
                 print("🟡 selectedTeeId changed to: \(teeId)")

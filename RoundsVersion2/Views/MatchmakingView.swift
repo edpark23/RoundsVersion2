@@ -44,7 +44,7 @@ struct MatchmakingView: View {
                             }
                             dismiss()
                         } label: {
-                            Text(viewModel.matchState == .searching ? "CANCEL" : "CLOSE")
+                            Text("CANCEL")
                                 .font(.system(size: 14, weight: .bold))
                                 .tracking(0.5)
                                 .foregroundColor(.red)
