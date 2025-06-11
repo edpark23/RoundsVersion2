@@ -133,14 +133,14 @@ struct RoundsVersion2App: App {
     
     private func initializeModularArchitecture() async {
         // Register core modules
-        let moduleManager = await MainActor.run { ModuleManager.shared }
+        _ = await MainActor.run { ModuleManager.shared }
         
         // Example module registration would go here
         print("🏗️ Modular architecture initialized")
     }
     
     private func initializePluginSystem() async {
-        let pluginManager = await MainActor.run { PluginManager.shared }
+        _ = await MainActor.run { PluginManager.shared }
         
         // Core plugins are loaded automatically in PluginManager init
         print("🔌 Plugin system initialized")

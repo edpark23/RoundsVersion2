@@ -241,7 +241,7 @@ class BaseFeatureModule: ObservableObject, @preconcurrency FeatureModule {
     func healthCheck() async -> ModuleHealth {
         // Basic health check - override for specific metrics
         return ModuleHealth(
-            status: await self.isEnabled ? .healthy : .warning,
+            status: self.isEnabled ? .healthy : .warning,
             metrics: ModuleHealth.HealthMetrics(
                 memoryUsage: 1024 * 1024, // 1MB default
                 cpuUsage: 5.0, // 5% default
