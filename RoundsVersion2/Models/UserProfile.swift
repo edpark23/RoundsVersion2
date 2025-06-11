@@ -12,11 +12,14 @@ struct UserProfile: Identifiable, Hashable {
     var initials: String {
         let components = fullName.split(separator: " ")
         if components.count >= 2 {
-            return "\(components[0].prefix(1))\(components[1].prefix(1))".uppercased()
-        } else if let first = components.first {
-            return String(first.prefix(2)).uppercased()
+            let firstName = String(components[0])
+            let lastName = String(components[1])
+            return "\(firstName.prefix(1))\(lastName.prefix(1))".uppercased()
+        } else if !fullName.isEmpty {
+            return String(fullName.prefix(2)).uppercased()
+        } else {
+            return "U"
         }
-        return "??"
     }
     
     func hash(into hasher: inout Hasher) {

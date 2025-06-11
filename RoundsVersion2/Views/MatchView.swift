@@ -146,7 +146,7 @@ struct MatchView: View {
                                             .frame(maxWidth: .infinity)
                                             .background(Color.white)
                                             .cornerRadius(10)
-                                            .cardStyle()
+                                            .modernCard()
                                             
                                             Button {
                                                 showingScoreVerification = true
@@ -162,7 +162,7 @@ struct MatchView: View {
                                                 .padding(.horizontal, 12)
                                                 .frame(maxWidth: .infinity)
                                             }
-                                            .navyButton()
+                                            .primaryButton()
                                         } else {
                                             Button {
                                                 showingGolfCourseSelector = true
@@ -178,7 +178,7 @@ struct MatchView: View {
                                                 .padding(.horizontal, 12)
                                                 .frame(maxWidth: .infinity)
                                             }
-                                            .navyButton()
+                                            .primaryButton()
                                         }
                                     }
                                     .padding(.horizontal, 12) // Reduced from .horizontal

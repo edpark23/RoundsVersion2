@@ -7,13 +7,15 @@ struct RoundActiveView: View {
     @State private var roundStartTime: Date
     @State private var showingScoreVerification = false
     @State private var showingManualScoreEntry = false
+    @State private var currentHole: Int = 1
+    @State private var animateTimer = false
     
     // Course and tee information
     let course: GolfCourseSelectorViewModel.GolfCourseDetails
     let tee: GolfCourseSelectorViewModel.TeeDetails
     let settings: RoundSettings
     
-    // Sample players with the correct names for the test case (Ed vs Jay Lee)
+    // Enhanced players with Phase 4 UI integration
     @State var matchPlayers: [UserProfile] = [
         UserProfile(
             id: "current_user",
@@ -41,17 +43,14 @@ struct RoundActiveView: View {
         case doubles // 4 players
     }
     
-    // For the test case, we're showing singles match between Ed and Jay
     var matchType: MatchType {
         return .singles
     }
     
-    // The players are already correctly set up for the Ed vs Jay match
     var activePlayers: [UserProfile] {
         return matchPlayers
     }
     
-    // For test purposes - in a real implementation, this would be passed from MatchView
     var matchId: String {
         return "test_match_123"
     }
@@ -65,122 +64,57 @@ struct RoundActiveView: View {
     
     var body: some View {
         ZStack {
-            // Background
-            VStack(spacing: 0) {
-                AppColors.primaryNavy
-                    .frame(height: 100)
-                Color(red: 0.95, green: 0.95, blue: 0.97)
-            }
-            .ignoresSafeArea()
+            // Modern Phase 4 background
+            AppColors.backgroundPrimary.ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Custom Navigation Bar
-                HStack {
-                    Button(action: {
-                        dismiss()
-                    }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.white)
-                    }
-                    
-                    Spacer()
-                    
-                    Text("ROUNDS")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundColor(.white)
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        // Profile action
-                    }) {
-                        Image(systemName: "person.crop.circle")
-                            .font(.system(size: 18))
-                            .foregroundColor(.white)
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 50) // Account for status bar
-                .padding(.bottom, 12)
+                // Enhanced header with Phase 4 styling
+                modernHeader
                 
-                // Timer banner
-                roundProgressBanner
-                    .padding(.horizontal, 12)
-                    .padding(.top, 12)
+                // Live round progress with Phase 4 enhancements
+                liveProgressBanner
                 
-                // Course information
-                courseInfoCard
-                    .padding(.horizontal, 12)
-                    .padding(.top, 10)
+                // Enhanced course information
+                modernCourseCard
                 
-                // Player list
-                ScrollView {
-                    VStack(spacing: 10) {
-                        ForEach(activePlayers, id: \.id) { player in
-                            playerRow(player: player)
-                        }
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.top, 10)
-                    .padding(.bottom, 100) // Space for buttons
-                }
+                // Live player scorecard
+                livePlayerScorecard
                 
                 Spacer()
-            }
-            
-            // Bottom buttons
-            VStack {
-                Spacer()
                 
-                VStack(spacing: 10) {
-                    Button(action: {
-                        print("🟢 ENTER SCORE MANUALLY button tapped")
-                        print("🟢 Current showingManualScoreEntry state: \(showingManualScoreEntry)")
-                        showingManualScoreEntry = true
-                        print("🟢 Updated showingManualScoreEntry state: \(showingManualScoreEntry)")
-                    }) {
-                        HStack {
-                            Spacer()
-                            Text("ENTER SCORE MANUALLY")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(AppColors.primaryNavy)
-                            Spacer()
-                        }
-                        .frame(height: 48)
-                        .background(Color.white)
-                        .cornerRadius(24)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 24)
-                                .stroke(AppColors.primaryNavy, lineWidth: 1.5)
-                        )
-                    }
-                    
-                    Button(action: {
-                        // Show ScoreVerificationView for OCR scanning
-                        showingScoreVerification = true
-                    }) {
-                        HStack {
-                            Image(systemName: "camera")
-                                .font(.system(size: 14))
-                                .foregroundColor(.white)
-                                .padding(.trailing, 6)
-                            
-                            Text("SUBMIT ROUND WITH PHOTO")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(.white)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 48)
-                        .background(Color(red: 0.3, green: 0.5, blue: 0.7))
-                        .cornerRadius(24)
-                    }
-                }
-                .padding(.horizontal, 12)
-                .padding(.bottom, 16)
+                // Phase 4 action buttons
+                modernActionButtons
             }
         }
         .navigationBarHidden(true)
+        .swipeGestures(
+            onSwipeLeft: {
+                // Quick hole navigation
+                if currentHole < 18 {
+                    withAnimation(AppAnimations.holeChange) {
+                        currentHole += 1
+                    }
+                }
+            },
+            onSwipeRight: {
+                // Previous hole navigation
+                if currentHole > 1 {
+                    withAnimation(AppAnimations.holeChange) {
+                        currentHole -= 1
+                    }
+                }
+            },
+            onSwipeUp: {
+                // Quick score entry
+                showingManualScoreEntry = true
+            },
+            onSwipeDown: {
+                // Refresh round data
+                withAnimation(AppAnimations.liveUpdate) {
+                    // Refresh logic here
+                }
+            }
+        )
         .onAppear {
             startTimer()
         }
@@ -193,6 +127,7 @@ struct RoundActiveView: View {
                     matchId: matchId,
                     selectedCourse: course
                 )
+                .interactiveNavigation()
             }
         }
         .fullScreenCover(isPresented: $showingManualScoreEntry) {
@@ -201,130 +136,289 @@ struct RoundActiveView: View {
                     matchId: matchId,
                     selectedCourse: course
                 )
-                .onAppear {
-                    print("🟡 fullScreenCover for manual score entry is being presented")
-                }
+                .interactiveNavigation()
             }
         }
     }
     
-    // Green progress banner with round time
-    private var roundProgressBanner: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(red: 0.8, green: 0.9, blue: 0.8))
-                .frame(height: 56)
+    // MARK: - Modern Header
+    private var modernHeader: some View {
+        VStack(spacing: 0) {
+            // Status bar background
+            AppColors.primaryBlue
+                .frame(height: 50)
+                .ignoresSafeArea(edges: .top)
             
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(Color.green)
-                    .frame(width: 8, height: 8)
-                
-                Text("\(formatTimeInterval(elapsedTime)) - Round in Progress")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.black)
-            }
-        }
-    }
-    
-    // Course information card
-    private var courseInfoCard: some View {
-        VStack(alignment: .leading, spacing: 4) {
+            // Header content with Phase 4 enhancements
             HStack {
-                Text(course.clubName)
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(.black)
+                Button(action: {
+                    dismiss()
+                }) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+                .interactiveButton()
                 
                 Spacer()
                 
-                Text("View Round Settings")
-                    .font(.system(size: 12))
-                    .foregroundColor(.blue)
-            }
-            
-            Text("\(tee.teeName) - \(tee.totalYards) yards")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.black)
-            
-            Text("Rating: \(String(format: "%.2f", tee.courseRating))")
-                .font(.system(size: 12))
-                .foregroundColor(.gray)
-            
-            Text("Slope: \(tee.slopeRating)")
-                .font(.system(size: 12))
-                .foregroundColor(.gray)
-        }
-        .padding(12)
-        .background(Color.white)
-        .cornerRadius(10)
-    }
-    
-    // Player row with updated status logic for Ed and Jay
-    private func playerRow(player: UserProfile) -> some View {
-        HStack(spacing: 10) {
-            // Profile image
-            ZStack {
-                Circle()
-                    .fill(Color.gray.opacity(0.2))
-                    .frame(width: 40, height: 40)
-                
-                // Use the initials property from UserProfile
-                Text(player.initials)
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(.white)
-                    .frame(width: 36, height: 36)
-                    .background(AppColors.primaryNavy)
-                    .clipShape(Circle())
-                
-                // Pro badge
-                ZStack {
-                    Circle()
-                        .fill(Color.purple)
-                        .frame(width: 18, height: 18)
+                VStack(spacing: 2) {
+                    Text("LIVE ROUND")
+                        .font(AppTypography.captionLarge)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .liveIndicator()
                     
-                    Text("P")
-                        .font(.system(size: 10, weight: .bold))
+                    Text(course.clubName)
+                        .font(AppTypography.caption)
+                        .foregroundColor(.white.opacity(0.8))
+                }
+                
+                Spacer()
+                
+                Button(action: {
+                    // Profile or settings action
+                }) {
+                    Image(systemName: "person.crop.circle")
+                        .font(.system(size: 18))
                         .foregroundColor(.white)
                 }
-                .offset(x: 13, y: 13)
+                .interactiveButton()
+            }
+            .padding(.horizontal, AppSpacing.medium)
+            .padding(.bottom, AppSpacing.small)
+            .background(AppColors.primaryBlue)
+        }
+        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+    }
+    
+    // MARK: - Live Progress Banner
+    private var liveProgressBanner: some View {
+        HStack {
+            // Timer with enhanced animation
+            HStack(spacing: AppSpacing.small) {
+                Circle()
+                    .fill(AppColors.liveGreen)
+                    .frame(width: 8, height: 8)
+                    .scaleEffect(animateTimer ? 1.2 : 1.0)
+                    .animation(AppAnimations.liveUpdate.repeatForever(), value: animateTimer)
+                
+                Text(formattedTime(elapsedTime))
+                    .font(AppTypography.bodyMedium)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+                    .pulseOnUpdate(elapsedTime)
             }
             
+            Spacer()
+            
+            // Current hole indicator
+            Text("Hole \(currentHole) of 18")
+                .font(AppTypography.bodySmall)
+                .foregroundColor(.white.opacity(0.9))
+        }
+        .padding(AppSpacing.medium)
+        .background(AppColors.success)
+        .cornerRadius(12)
+        .padding(.horizontal, AppSpacing.medium)
+        .padding(.top, AppSpacing.small)
+        .onAppear {
+            animateTimer = true
+        }
+    }
+    
+    // MARK: - Modern Course Card
+    private var modernCourseCard: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.small) {
+            HStack {
+                Text(course.clubName)
+                    .font(AppTypography.titleMedium)
+                    .fontWeight(.bold)
+                    .foregroundColor(AppColors.textPrimary)
+                
+                Spacer()
+                
+                Text("\(course.city), \(course.state)")
+                    .font(AppTypography.bodySmall)
+                    .foregroundColor(AppColors.textSecondary)
+            }
+            
+            // Course details with Phase 4 styling
+            HStack(spacing: AppSpacing.large) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("TEE")
+                        .font(AppTypography.caption)
+                        .foregroundColor(AppColors.textSecondary)
+                    
+                    Text(tee.teeName)
+                        .font(AppTypography.bodyMedium)
+                        .fontWeight(.semibold)
+                        .foregroundColor(AppColors.primaryBlue)
+                }
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("PAR")
+                        .font(AppTypography.caption)
+                        .foregroundColor(AppColors.textSecondary)
+                    
+                    Text("\(tee.parTotal)")
+                        .font(AppTypography.bodyMedium)
+                        .fontWeight(.semibold)
+                        .foregroundColor(AppColors.primaryBlue)
+                }
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("YARDAGE")
+                        .font(AppTypography.caption)
+                        .foregroundColor(AppColors.textSecondary)
+                    
+                    Text("\(tee.totalYards)")
+                        .font(AppTypography.bodyMedium)
+                        .fontWeight(.semibold)
+                        .foregroundColor(AppColors.primaryBlue)
+                }
+                
+                Spacer()
+            }
+        }
+        .liveMatchCard()
+        .padding(.horizontal, AppSpacing.medium)
+        .padding(.top, AppSpacing.small)
+    }
+    
+    // MARK: - Live Player Scorecard
+    private var livePlayerScorecard: some View {
+        VStack(spacing: AppSpacing.medium) {
+            Text("PLAYERS")
+                .font(AppTypography.captionLarge)
+                .fontWeight(.bold)
+                .foregroundColor(AppColors.textSecondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            
+            ForEach(activePlayers, id: \.id) { player in
+                modernPlayerRow(player: player)
+            }
+        }
+        .padding(AppSpacing.medium)
+        .background(AppColors.surfacePrimary)
+        .modernCard()
+        .padding(.horizontal, AppSpacing.medium)
+        .padding(.top, AppSpacing.small)
+    }
+    
+    // MARK: - Modern Player Row
+    private func modernPlayerRow(player: UserProfile) -> some View {
+        HStack(spacing: AppSpacing.medium) {
+            // Enhanced player avatar
+            ZStack {
+                Circle()
+                    .fill(player.id == "current_user" ? AppColors.primaryBlue : AppColors.secondaryBlue)
+                    .frame(width: 50, height: 50)
+                
+                Text(player.initials)
+                    .font(AppTypography.bodyLarge)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                
+                if player.id == "current_user" {
+                    Circle()
+                        .stroke(AppColors.accentGold, lineWidth: 2)
+                        .frame(width: 54, height: 54)
+                }
+            }
+            
+            // Player info with enhanced typography
             VStack(alignment: .leading, spacing: 2) {
                 Text(player.fullName)
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(.black)
-                    .lineLimit(1)
+                    .font(AppTypography.bodyLarge)
+                    .fontWeight(.semibold)
+                    .foregroundColor(AppColors.textPrimary)
                 
-                // Round status - both players in progress for Ed vs Jay
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(Color.green)
-                        .frame(width: 6, height: 6)
+                HStack(spacing: AppSpacing.small) {
+                    Image(systemName: "star.fill")
+                        .font(.caption)
+                        .foregroundColor(AppColors.accentGold)
                     
-                    Text("Round in progress")
-                        .font(.system(size: 12))
-                        .foregroundColor(.green)
+                    Text("ELO: \(player.elo)")
+                        .font(AppTypography.bodySmall)
+                        .foregroundColor(AppColors.textSecondary)
                 }
             }
             
             Spacer()
             
-            // Only show 'View' button for the opponent (Jay Lee)
-            if player.fullName == "Jay Lee" {
-                Text("View")
-                    .font(.system(size: 12))
-                    .foregroundColor(.blue)
+            // Live score indicator
+            VStack(spacing: 4) {
+                Text("TOTAL")
+                    .font(AppTypography.caption)
+                    .foregroundColor(AppColors.textSecondary)
+                
+                Text("E")
+                    .font(AppTypography.titleMedium)
+                    .fontWeight(.bold)
+                    .foregroundColor(AppColors.success)
+                    .pulseOnUpdate(player.id)
             }
         }
-        .padding(12)
-        .background(Color.white)
-        .cornerRadius(10)
+        .padding(AppSpacing.small)
+        .background(AppColors.backgroundSecondary.opacity(0.5))
+        .cornerRadius(12)
     }
     
-    // Timer functions
+    // MARK: - Modern Action Buttons
+    private var modernActionButtons: some View {
+        VStack(spacing: AppSpacing.medium) {
+            // Primary action - Manual score entry
+            Button(action: {
+                showingManualScoreEntry = true
+            }) {
+                HStack(spacing: AppSpacing.small) {
+                    Image(systemName: "pencil.circle.fill")
+                        .font(.title2)
+                    
+                    Text("ENTER SCORE MANUALLY")
+                        .font(AppTypography.bodyLarge)
+                        .fontWeight(.bold)
+                }
+                .foregroundColor(AppColors.primaryBlue)
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
+                .background(AppColors.backgroundWhite)
+                .cornerRadius(28)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 28)
+                        .stroke(AppColors.primaryBlue, lineWidth: 2)
+                )
+            }
+            .interactiveButton()
+            
+            // Secondary action - Camera scan
+            Button(action: {
+                showingScoreVerification = true
+            }) {
+                HStack(spacing: AppSpacing.small) {
+                    Image(systemName: "camera.fill")
+                        .font(.title2)
+                    
+                    Text("SUBMIT ROUND WITH PHOTO")
+                        .font(AppTypography.bodyLarge)
+                        .fontWeight(.bold)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
+            }
+            .primaryButton()
+            .interactiveButton()
+        }
+        .padding(.horizontal, AppSpacing.medium)
+        .padding(.bottom, AppSpacing.large)
+    }
+    
+    // MARK: - Helper Functions
     private func startTimer() {
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            self.elapsedTime = Date().timeIntervalSince(self.roundStartTime)
+            elapsedTime = Date().timeIntervalSince(roundStartTime)
         }
     }
     
@@ -333,13 +427,13 @@ struct RoundActiveView: View {
         timer = nil
     }
     
-    private func formatTimeInterval(_ interval: TimeInterval) -> String {
-        let hours = Int(interval) / 3600
-        let minutes = Int(interval) / 60 % 60
-        let seconds = Int(interval) % 60
+    private func formattedTime(_ timeInterval: TimeInterval) -> String {
+        let hours = Int(timeInterval) / 3600
+        let minutes = Int(timeInterval) % 3600 / 60
+        let seconds = Int(timeInterval) % 60
         
         if hours > 0 {
-            return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
         } else {
             return String(format: "%02d:%02d", minutes, seconds)
         }

@@ -7,6 +7,7 @@ struct HomeView: View {
     @State private var showingNewMatch = false
     @State private var showingMatchmaking = false
     @State private var selectedTab: Tab = .solo
+    @State private var animateStats = false
     
     enum Tab {
         case solo, duos
@@ -15,48 +16,42 @@ struct HomeView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                // Main background
-                Color.white.ignoresSafeArea()
+                // Modern gradient background
+                AppColors.backgroundPrimary
+                    .ignoresSafeArea()
                 
-                VStack(spacing: 0) {
-                    // Blue background that extends to the top edge
-                    Color(red: 0/255, green: 75/255, blue: 143/255) // #004B8F
-                        .frame(height: 100) // Height for both status bar area and navigation bar
-                        .ignoresSafeArea(edges: .top)
-                        .overlay(
-                            // Title centered in the visible portion of the blue area
-                            Text("ROUNDS")
-                                .font(.system(size: 18, weight: .bold))
-                                .foregroundColor(.white)
-                                .padding(.top, 50) // Position below the status bar area
-                        )
-                        .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 2)
-                    
-                    // Main content - no scroll view to fit on one screen
-                    VStack(spacing: 0) {
-                        // Toggle buttons
-                        toggleView
-                            .padding(.horizontal, 16)
-                            .padding(.top, 16)
+                ScrollView {
+                    LazyVStack(spacing: AppSpacing.large) {
+                        // Modern header with welcome message
+                        modernHeaderView
                         
-                        // Profile card with QR code
-                        profileCardView
-                            .padding(.horizontal, 16)
-                            .padding(.top, 16)
+                        // Quick stats dashboard
+                        quickStatsView
                         
-                        // Play round button
-                        playRoundButton
-                            .padding(.horizontal, 16)
-                            .padding(.top, 16)
-                            .padding(.bottom, 16)
+                        // Game mode selector (improved)
+                        modernGameModeSelector
+                        
+                        // Action buttons section (moved up for better UX)
+                        actionButtonsSection
+                        
+                        // Enhanced profile card
+                        enhancedProfileCard
+                        
+                        // Active matches section (limited to last 3)
+                        activeMatchesSection
+                        
+                        // Recent achievements or tips
+                        recentAchievementsView
                     }
-                    
-                    Spacer() // Push everything up
+                    .padding(.horizontal, AppSpacing.medium)
+                    .padding(.top, AppSpacing.small)
                 }
-                .edgesIgnoringSafeArea(.top) // Ensure content goes to the top edge
+                .refreshable {
+                    await refreshData()
+                }
             }
             .navigationBarHidden(true)
-            .sheet(isPresented: $showingNewMatch) {
+            .modernSheet(isPresented: $showingNewMatch) {
                 NavigationStack {
                     GolfCourseSelectorView(
                         viewModel: GolfCourseSelectorViewModel(),
@@ -65,233 +60,663 @@ struct HomeView: View {
                             showingNewMatch = false
                         }
                     )
+                    .interactiveNavigation()
                 }
             }
-            .sheet(isPresented: $showingMatchmaking) {
-                MatchmakingView()
+            .fullScreenCover(isPresented: $showingMatchmaking) {
+                NavigationStack {
+                    MatchmakingView()
+                        .interactiveNavigation()
+                }
             }
+            .swipeGestures(
+                onSwipeLeft: {
+                    // Quick action for swipe left - could go to profile
+                    print("Swiped left - could navigate to profile")
+                },
+                onSwipeRight: {
+                    // Quick action for swipe right - could open quick actions
+                    print("Swiped right - could open quick actions")
+                },
+                onSwipeDown: {
+                    // Refresh gesture
+                    Task {
+                        await refreshData()
+                    }
+                }
+            )
             .onAppear {
                 Task {
-                    await viewModel.loadUserData()
-                    await viewModel.loadActiveMatches()
-                    await viewModel.loadPlayerStats()
+                    await refreshData()
+                    withAnimation(AppAnimations.smoothSpring.delay(0.2)) {
+                        animateStats = true
+                    }
                 }
             }
         }
     }
     
-    // Toggle between Solo and Duos
-    private var toggleView: some View {
-        ZStack {
-            // Background
-            RoundedRectangle(cornerRadius: 25)
-                .fill(Color(red: 234/255, green: 234/255, blue: 234/255)) // #EAEAEA
-                .frame(height: 36)
-            
-            HStack(spacing: 0) {
-                // Solo button
-                Button(action: { selectedTab = .solo }) {
-                    Text("Solo")
-                        .font(.system(size: 14, weight: selectedTab == .solo ? .semibold : .medium))
-                        .foregroundColor(selectedTab == .solo ? .white : Color(red: 85/255, green: 85/255, blue: 85/255))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 36)
-                        .background(
-                            selectedTab == .solo ?
-                            RoundedRectangle(cornerRadius: 25)
-                                .fill(Color(red: 0/255, green: 75/255, blue: 143/255)) // #004B8F
-                            : nil
-                        )
+    // MARK: - Modern Header
+    private var modernHeaderView: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.small) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Welcome back,")
+                        .font(AppTypography.caption)
+                        .foregroundColor(AppColors.textSecondary)
+                    
+                    Text(mainViewModel.userProfile?.fullName ?? "Golfer")
+                        .font(AppTypography.titleLarge)
+                        .foregroundColor(AppColors.primaryBlue)
+                        .fontWeight(.bold)
                 }
                 
-                // Duos button
-                Button(action: { selectedTab = .duos }) {
-                    Text("Duos")
-                        .font(.system(size: 14, weight: selectedTab == .duos ? .semibold : .medium))
-                        .foregroundColor(selectedTab == .duos ? .white : Color(red: 85/255, green: 85/255, blue: 85/255))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 36)
-                        .background(
-                            selectedTab == .duos ?
-                            RoundedRectangle(cornerRadius: 25)
-                                .fill(Color(red: 0/255, green: 75/255, blue: 143/255)) // #004B8F
-                            : nil
+                Spacer()
+                
+                // Profile image with modern styling
+                if let profileImage = mainViewModel.profileImage {
+                    Image(uiImage: profileImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 44, height: 44)
+                        .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(AppColors.primaryBlue, lineWidth: 2)
+                        )
+                } else {
+                    Circle()
+                        .fill(AppColors.lightBlue)
+                        .frame(width: 44, height: 44)
+                        .overlay(
+                            Text(mainViewModel.userProfile?.initials ?? "")
+                                .font(AppTypography.bodyMedium)
+                                .fontWeight(.semibold)
+                                .foregroundColor(AppColors.primaryBlue)
                         )
                 }
             }
         }
-        .frame(height: 36)
+        .padding(AppSpacing.medium)
+        .background(AppColors.surfacePrimary)
+        .modernCard()
     }
     
-    // Profile card with QR code
-    private var profileCardView: some View {
-        ZStack {
-            // Card background
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white)
-                .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+    // MARK: - Quick Stats Dashboard
+    private var quickStatsView: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: AppSpacing.medium) {
+            QuickStatCard(
+                title: "Handicap Index",
+                value: String(format: "%.1f", Double(mainViewModel.userProfile?.elo ?? 0) / 100.0),
+                icon: "chart.line.uptrend.xyaxis",
+                color: AppColors.primaryBlue,
+                animate: animateStats
+            )
             
-            VStack(spacing: 0) {
-                // QR code with profile image
+            QuickStatCard(
+                title: "Win Rate",
+                value: viewModel.playerStats.winPercentage,
+                icon: "trophy.fill",
+                color: AppColors.success,
+                animate: animateStats
+            )
+        }
+    }
+    
+    // MARK: - Modern Game Mode Selector
+    private var modernGameModeSelector: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.small) {
+            Text("Game Mode")
+                .font(AppTypography.titleMedium)
+                .foregroundColor(AppColors.textPrimary)
+                .fontWeight(.semibold)
+            
+            HStack(spacing: AppSpacing.small) {
+                GameModeButton(
+                    title: "Solo",
+                    icon: "person.fill",
+                    isSelected: selectedTab == .solo,
+                    action: { selectedTab = .solo }
+                )
+                
+                GameModeButton(
+                    title: "Duos",
+                    icon: "person.2.fill",
+                    isSelected: selectedTab == .duos,
+                    action: { selectedTab = .duos }
+                )
+            }
+        }
+        .padding(AppSpacing.medium)
+        .background(AppColors.surfacePrimary)
+        .modernCard()
+    }
+    
+    // MARK: - Action Buttons Section
+    private var actionButtonsSection: some View {
+        VStack(spacing: AppSpacing.medium) {
+            Button(action: { 
+                showingMatchmaking = true 
+            }) {
+                HStack {
+                    Image(systemName: "play.circle.fill")
+                        .font(.title2)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Play Round")
+                            .font(AppTypography.bodyLarge)
+                            .fontWeight(.semibold)
+                        
+                        Text("Find opponents and start playing")
+                            .font(AppTypography.caption)
+                            .opacity(0.8)
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .opacity(0.6)
+                }
+                .foregroundColor(.white)
+                .padding(AppSpacing.medium)
+                .background(
+                    LinearGradient(
+                        colors: [AppColors.primaryBlue, AppColors.secondaryBlue],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(16)
+            }
+            .interactiveButton()
+            .hapticFeedback(style: .medium)
+            .longPressGesture(duration: 0.3) {
+                // Quick start with last settings
+                print("Long press detected - quick start with last settings")
+            }
+            
+            HStack(spacing: AppSpacing.medium) {
+                Button(action: { 
+                    showingNewMatch = true 
+                }) {
+                    HStack {
+                        Image(systemName: "plus.circle")
+                        Text("Quick Match")
+                            .fontWeight(.medium)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .secondaryButton()
+                .interactiveButton()
+                .hapticFeedback(style: .light)
+                
+                Button(action: { 
+                    // Practice mode
+                    print("Practice mode selected")
+                }) {
+                    HStack {
+                        Image(systemName: "target")
+                        Text("Practice")
+                            .fontWeight(.medium)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .tertiaryButton()
+                .interactiveButton()
+                .hapticFeedback(style: .light)
+                .longPressGesture(duration: 0.5) {
+                    // Advanced practice options
+                    print("Long press practice - advanced options")
+                }
+            }
+        }
+    }
+    
+    // MARK: - Enhanced Profile Card
+    private var enhancedProfileCard: some View {
+        VStack(spacing: AppSpacing.medium) {
+            // Header
+            HStack {
+                Text("Player Profile")
+                    .font(AppTypography.titleMedium)
+                    .foregroundColor(AppColors.textPrimary)
+                    .fontWeight(.semibold)
+                
+                Spacer()
+                
+                Button(action: { /* Share profile */ }) {
+                    Image(systemName: "square.and.arrow.up")
+                        .foregroundColor(AppColors.primaryBlue)
+                        .font(AppTypography.bodyMedium)
+                }
+            }
+            
+            // QR Code section with modern styling
+            VStack(spacing: AppSpacing.medium) {
                 ZStack {
+                    // Modern QR code background
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(AppColors.backgroundSecondary)
+                        .frame(width: 160, height: 160)
+                    
                     Image(systemName: "qrcode")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 180, height: 180)
-                        .foregroundColor(.black)
+                        .frame(width: 140, height: 140)
+                        .foregroundColor(AppColors.textPrimary)
                     
                     // Profile image overlay
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: 70, height: 70)
-                    
-                    // Actual profile image - now using the uploaded image if available
                     if let profileImage = mainViewModel.profileImage {
                         Image(uiImage: profileImage)
                             .resizable()
                             .scaledToFill()
-                            .frame(width: 64, height: 64)
+                            .frame(width: 50, height: 50)
                             .clipShape(Circle())
+                            .overlay(
+                                Circle()
+                                    .stroke(AppColors.surfacePrimary, lineWidth: 3)
+                            )
                     } else {
                         Circle()
-                            .fill(Color.gray.opacity(0.2))
-                            .frame(width: 64, height: 64)
+                            .fill(AppColors.primaryBlue)
+                            .frame(width: 50, height: 50)
                             .overlay(
                                 Text(mainViewModel.userProfile?.initials ?? "")
-                                    .font(.system(size: 24, weight: .bold))
-                                    .foregroundColor(.gray)
+                                    .font(AppTypography.bodyMedium)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
                             )
                     }
                 }
-                .padding(.top, 12)
                 
-                // Badge icon
-                Image(systemName: "hexagon.fill")
-                    .resizable()
-                    .frame(width: 24, height: 24)
-                    .foregroundColor(.purple)
-                    .padding(.top, 8)
-                
-                // Username - Display actual username from mainViewModel
-                Text(mainViewModel.userProfile?.fullName.uppercased() ?? "USERNAME")
-                    .font(.system(size: 14, weight: .bold))
-                    .tracking(0.5)
-                    .foregroundColor(.black)
-                    .padding(.top, 4)
-                
-                // Handicap
-                HStack(spacing: 4) {
-                    Image(systemName: "person.crop.circle.badge.checkmark")
-                        .font(.system(size: 24))
-                        .foregroundColor(AppColors.primaryNavy)
+                // Player info
+                VStack(spacing: 4) {
+                    Text(mainViewModel.userProfile?.fullName.uppercased() ?? "PLAYER")
+                        .font(AppTypography.bodyMedium)
+                        .fontWeight(.bold)
+                        .foregroundColor(AppColors.textPrimary)
                     
-                    Text("HI: \(String(format: "%.1f", Double(mainViewModel.userProfile?.elo ?? 0) / 100.0))")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.black)
-                }
-                .padding(.top, 4)
-                
-                // Stats section
-                VStack(spacing: 0) {
-                    // First row of stats
-                    HStack(spacing: 0) {
-                        StatItem(title: "WINS", value: "\(viewModel.playerStats.wins)")
-                        StatItem(title: "LOSSES", value: "\(viewModel.playerStats.losses)")
-                        StatItem(title: "DRAWS", value: "0")
-                        StatItem(title: "WIN %", value: viewModel.playerStats.winPercentage)
+                    HStack(spacing: 4) {
+                        Image(systemName: "star.fill")
+                            .foregroundColor(AppColors.accentNavy)
+                            .font(.caption)
+                        
+                        Text("Verified Player")
+                            .font(AppTypography.caption)
+                            .foregroundColor(AppColors.textSecondary)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.top, 12)
-                    
-                    // Divider
-                    Divider()
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                    
-                    // Second row of stats
-                    HStack(spacing: 0) {
-                        StatItem(title: "BIRDIES", value: "\(viewModel.playerStats.birdies)")
-                        StatItem(title: "PARS", value: "\(viewModel.playerStats.pars)")
-                        StatItem(title: "BOGEYS", value: "\(viewModel.playerStats.bogeys)")
-                        StatItem(title: "DOUBLES", value: "\(viewModel.playerStats.doubleBogeys)")
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 12)
                 }
-                .padding(.top, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color(red: 200/255, green: 200/255, blue: 200/255), lineWidth: 1)
-                        .padding(.horizontal, 12)
-                )
-                .padding(.vertical, 8)
+            }
+            
+            // Enhanced stats grid
+            enhancedStatsGrid
+        }
+        .padding(AppSpacing.medium)
+        .background(AppColors.surfacePrimary)
+        .featuredCard()
+    }
+    
+    // MARK: - Enhanced Stats Grid
+    private var enhancedStatsGrid: some View {
+        VStack(spacing: AppSpacing.medium) {
+            // Performance stats
+            VStack(alignment: .leading, spacing: AppSpacing.small) {
+                Text("Performance")
+                    .font(AppTypography.bodyMedium)
+                    .fontWeight(.semibold)
+                    .foregroundColor(AppColors.textSecondary)
+                
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: AppSpacing.small) {
+                    StatCell(title: "WINS", value: "\(viewModel.playerStats.wins)", color: AppColors.success)
+                    StatCell(title: "LOSSES", value: "\(viewModel.playerStats.losses)", color: AppColors.error)
+                    StatCell(title: "DRAWS", value: "0", color: AppColors.warning)
+                    StatCell(title: "WIN %", value: viewModel.playerStats.winPercentage, color: AppColors.primaryBlue)
+                }
+            }
+            
+            Divider()
+                .background(AppColors.borderLight)
+            
+            // Scoring stats
+            VStack(alignment: .leading, spacing: AppSpacing.small) {
+                Text("Scoring")
+                    .font(AppTypography.bodyMedium)
+                    .fontWeight(.semibold)
+                    .foregroundColor(AppColors.textSecondary)
+                
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: AppSpacing.small) {
+                    StatCell(title: "BIRDIES", value: "\(viewModel.playerStats.birdies)", color: AppColors.success)
+                    StatCell(title: "PARS", value: "\(viewModel.playerStats.pars)", color: AppColors.primaryBlue)
+                    StatCell(title: "BOGEYS", value: "\(viewModel.playerStats.bogeys)", color: AppColors.warning)
+                    StatCell(title: "DOUBLES", value: "\(viewModel.playerStats.doubleBogeys)", color: AppColors.error)
+                }
             }
         }
-        .frame(height: 400) // Reduced from 509 to fit on screen
+        .padding(AppSpacing.medium)
+        .background(AppColors.backgroundSecondary)
+        .cornerRadius(12)
     }
     
-    // Play round button
-    private var playRoundButton: some View {
-        Button(action: { 
-            // Changed to trigger matchmaking instead of new match
-            showingMatchmaking = true 
-        }) {
-            Text("PLAY ROUND")
-                .font(.system(size: 14, weight: .bold))
-                .tracking(0.5)
-                .foregroundColor(.white)
+    // MARK: - Active Matches Section
+    private var activeMatchesSection: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            HStack {
+                Text("Active Matches")
+                    .font(AppTypography.titleMedium)
+                    .foregroundColor(AppColors.textPrimary)
+                    .fontWeight(.semibold)
+                
+                Spacer()
+                
+                Text("\(min(viewModel.activeMatches.count, 3))")
+                    .font(AppTypography.caption)
+                    .foregroundColor(AppColors.textSecondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(AppColors.lightBlue)
+                    .cornerRadius(8)
+                
+                if viewModel.activeMatches.count > 3 {
+                    Text("+\(viewModel.activeMatches.count - 3)")
+                        .font(AppTypography.caption)
+                        .foregroundColor(AppColors.textSecondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(AppColors.backgroundSecondary)
+                        .cornerRadius(6)
+                }
+            }
+            
+            ForEach(Array(viewModel.activeMatches.prefix(3))) { match in
+                MatchCard(match: match)
+            }
+            
+            // Empty state when no matches
+            if viewModel.activeMatches.isEmpty {
+                VStack(spacing: AppSpacing.small) {
+                    Image(systemName: "golf.tee")
+                        .font(.title)
+                        .foregroundColor(AppColors.textSecondary)
+                    
+                    Text("No active matches")
+                        .font(AppTypography.bodyMedium)
+                        .foregroundColor(AppColors.textSecondary)
+                        .fontWeight(.medium)
+                    
+                    Text("Start a new round to see it here")
+                        .font(AppTypography.caption)
+                        .foregroundColor(AppColors.textSecondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(AppSpacing.large)
                 .frame(maxWidth: .infinity)
-                .frame(height: 44)
-                .background(
-                    RoundedRectangle(cornerRadius: 22)
-                        .fill(Color(red: 0/255, green: 75/255, blue: 143/255)) // #004B8F
-                        .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 2)
-                )
+                .background(AppColors.backgroundSecondary.opacity(0.5))
+                .cornerRadius(12)
+            }
+            
+            if viewModel.activeMatches.count > 3 {
+                Button(action: { /* Show all matches */ }) {
+                    HStack {
+                        Text("View All Matches")
+                            .font(AppTypography.bodyMedium)
+                            .fontWeight(.medium)
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                    }
+                    .foregroundColor(AppColors.primaryBlue)
+                    .padding(AppSpacing.medium)
+                    .background(AppColors.lightBlue.opacity(0.1))
+                    .cornerRadius(12)
+                }
+            }
         }
+        .padding(AppSpacing.medium)
+        .background(AppColors.surfacePrimary)
+        .modernCard()
+    }
+    
+    // MARK: - Recent Achievements
+    private var recentAchievementsView: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.medium) {
+            Text("Recent Achievements")
+                .font(AppTypography.titleMedium)
+                .foregroundColor(AppColors.textPrimary)
+                .fontWeight(.semibold)
+            
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: AppSpacing.medium) {
+                    AchievementCard(
+                        title: "First Win",
+                        description: "Won your first match",
+                        icon: "trophy.fill",
+                        color: AppColors.accentGold
+                    )
+                    
+                    AchievementCard(
+                        title: "Eagle Eye",
+                        description: "Made an eagle",
+                        icon: "eye.fill",
+                        color: AppColors.success
+                    )
+                    
+                    AchievementCard(
+                        title: "Consistency",
+                        description: "5 matches this week",
+                        icon: "calendar.badge.clock",
+                        color: AppColors.primaryBlue
+                    )
+                }
+                .padding(.horizontal, AppSpacing.medium)
+            }
+        }
+        .padding(.vertical, AppSpacing.medium)
+    }
+    
+    // MARK: - Helper Functions
+    private func refreshData() async {
+        await viewModel.loadUserData()
+        await viewModel.loadActiveMatches()
+        await viewModel.loadPlayerStats()
     }
 }
 
-// Battery view component
-struct BatteryView: View {
-    var body: some View {
-        ZStack(alignment: .leading) {
-            // Battery outline
-            RoundedRectangle(cornerRadius: 2)
-                .stroke(Color.white, lineWidth: 1)
-                .frame(width: 20, height: 10)
-            
-            // Battery fill
-            RoundedRectangle(cornerRadius: 1)
-                .fill(Color.white)
-                .padding(.horizontal, 2)
-                .frame(width: 16, height: 6)
-            
-            // Battery tip
-            Rectangle()
-                .fill(Color.white)
-                .frame(width: 1, height: 4)
-                .offset(x: 20 + 0.5)
-        }
-    }
-}
+// MARK: - Supporting Views
 
-// Stat item component
-struct StatItem: View {
+struct QuickStatCard: View {
     let title: String
     let value: String
+    let icon: String
+    let color: Color
+    let animate: Bool
     
     var body: some View {
-        VStack(spacing: 2) {
-            Text(title)
-                .font(.system(size: 10, weight: .bold))
-                .tracking(0.5)
-                .foregroundColor(Color(red: 119/255, green: 119/255, blue: 119/255)) // #777777
+        VStack(spacing: AppSpacing.small) {
+            HStack {
+                Image(systemName: icon)
+                    .foregroundColor(color)
+                    .font(.title2)
+                
+                Spacer()
+            }
             
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(value)
+                        .font(AppTypography.titleLarge)
+                        .fontWeight(.bold)
+                        .foregroundColor(AppColors.textPrimary)
+                        .scaleEffect(animate ? 1.0 : 0.8)
+                        .animation(.spring(response: 0.6, dampingFraction: 0.8), value: animate)
+                    
+                    Text(title)
+                        .font(AppTypography.caption)
+                        .foregroundColor(AppColors.textSecondary)
+                }
+                
+                Spacer()
+            }
+        }
+        .padding(AppSpacing.medium)
+        .background(AppColors.surfacePrimary)
+        .modernCard()
+    }
+}
+
+struct GameModeButton: View {
+    let title: String
+    let icon: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: {
+            action()
+        }) {
+            HStack(spacing: AppSpacing.small) {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundColor(isSelected ? .white : AppColors.primaryBlue)
+                    .scaleEffect(isSelected ? 1.1 : 1.0)
+                    .animation(AppAnimations.quickSpring, value: isSelected)
+                
+                Text(title)
+                    .font(AppTypography.bodyMedium)
+                    .fontWeight(.semibold)
+                    .foregroundColor(isSelected ? .white : AppColors.primaryBlue)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, AppSpacing.medium)
+            .padding(.horizontal, AppSpacing.medium)
+            .background(
+                ZStack {
+                    if isSelected {
+                        LinearGradient(
+                            colors: [AppColors.primaryBlue, AppColors.secondaryBlue],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                        .cornerRadius(12)
+                    } else {
+                        AppColors.lightBlue.opacity(0.3)
+                            .cornerRadius(12)
+                    }
+                }
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(
+                        isSelected ? Color.clear : AppColors.primaryBlue.opacity(0.3),
+                        lineWidth: 1
+                    )
+            )
+            .scaleEffect(isSelected ? 1.02 : 1.0)
+            .shadow(
+                color: isSelected ? AppColors.primaryBlue.opacity(0.3) : Color.clear,
+                radius: isSelected ? 8 : 0,
+                x: 0,
+                y: isSelected ? 2 : 0
+            )
+            .animation(AppAnimations.smoothSpring, value: isSelected)
+        }
+        .interactiveButton()
+        .hapticFeedback(style: .light)
+    }
+}
+
+struct StatCell: View {
+    let title: String
+    let value: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 4) {
             Text(value)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundColor(.black)
+                .font(AppTypography.bodyMedium)
+                .fontWeight(.bold)
+                .foregroundColor(color)
+            
+            Text(title)
+                .font(AppTypography.caption)
+                .foregroundColor(AppColors.textSecondary)
         }
         .frame(maxWidth: .infinity)
+        .padding(.vertical, AppSpacing.small)
+    }
+}
+
+struct MatchCard: View {
+    let match: HomeViewModel.Match
+    
+    var body: some View {
+        HStack(spacing: AppSpacing.medium) {
+            // Match status indicator
+            Circle()
+                .fill(AppColors.success)
+                .frame(width: 12, height: 12)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(match.courseName)
+                    .font(AppTypography.bodyMedium)
+                    .fontWeight(.semibold)
+                    .foregroundColor(AppColors.textPrimary)
+                
+                Text("vs \(match.opponent?.fullName ?? "Opponent")")
+                    .font(AppTypography.caption)
+                    .foregroundColor(AppColors.textSecondary)
+            }
+            
+            Spacer()
+            
+            VStack(alignment: .trailing, spacing: 4) {
+                Text("In Progress")
+                    .font(AppTypography.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(AppColors.success)
+                
+                Text(match.date, format: .dateTime.hour().minute())
+                    .font(AppTypography.caption)
+                    .foregroundColor(AppColors.textSecondary)
+            }
+        }
+        .padding(AppSpacing.medium)
+        .background(AppColors.lightBlue.opacity(0.1))
+        .cornerRadius(12)
+    }
+}
+
+struct AchievementCard: View {
+    let title: String
+    let description: String
+    let icon: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: AppSpacing.small) {
+            Image(systemName: icon)
+                .font(.title)
+                .foregroundColor(color)
+                .frame(width: 40, height: 40)
+            
+            VStack(spacing: 4) {
+                Text(title)
+                    .font(AppTypography.bodyMedium)
+                    .fontWeight(.semibold)
+                    .foregroundColor(AppColors.textPrimary)
+                
+                Text(description)
+                    .font(AppTypography.caption)
+                    .foregroundColor(AppColors.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(width: 120, height: 100)
+        .padding(AppSpacing.medium)
+        .background(AppColors.surfacePrimary)
+        .modernCard()
     }
 }
 

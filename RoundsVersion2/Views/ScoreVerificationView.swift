@@ -44,7 +44,7 @@ struct ScoreVerificationView: View {
                                     .resizable()
                                     .scaledToFit()
                                     .frame(maxHeight: 300)
-                                    .cardStyle()
+                                    .modernCard()
                             } else {
                                 uploadPlaceholder
                             }
@@ -67,7 +67,7 @@ struct ScoreVerificationView: View {
                                     .padding()
                                     .frame(maxWidth: .infinity)
                                 }
-                                .navyButton()
+                                .primaryButton()
                                 
                                 // Choose from library button
                                 Button(action: {
@@ -81,7 +81,7 @@ struct ScoreVerificationView: View {
                                     .padding()
                                     .frame(maxWidth: .infinity)
                                 }
-                                .navyButton()
+                                .primaryButton()
                             }
                             .padding(.horizontal, 4)
                             
@@ -205,7 +205,7 @@ struct ScoreVerificationView: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: 250)
-        .cardStyle()
+        .modernCard()
         .padding(.horizontal)
     }
     
@@ -336,10 +336,10 @@ struct ScoreVerificationView: View {
                 .padding()
                 .frame(maxWidth: .infinity)
             }
-            .navyButton()
+            .primaryButton()
         }
         .padding()
-        .cardStyle()
+        .modernCard()
         .padding(.horizontal)
     }
     
@@ -385,7 +385,7 @@ struct ScoreVerificationView: View {
                 .padding()
                 .frame(maxWidth: .infinity)
             }
-            .navyButton()
+            .primaryButton()
             
             if viewModel.scores.count < 18 {
                 Text("Note: OCR detected \(viewModel.scores.count) scores, but a full round should have 18 scores.")
@@ -394,7 +394,7 @@ struct ScoreVerificationView: View {
             }
         }
         .padding()
-        .cardStyle()
+        .modernCard()
         .padding(.horizontal)
     }
     
@@ -448,7 +448,7 @@ struct ScoreVerificationView: View {
             .frame(maxHeight: 350)
         }
         .padding()
-        .cardStyle()
+        .modernCard()
         .padding(.horizontal)
     }
 }

@@ -52,7 +52,7 @@ struct LoginView: View {
                                 .frame(maxWidth: .infinity)
                                 .padding()
                         }
-                        .navyButton()
+                        .primaryButton()
                         .padding(.horizontal)
                         
                         Button(action: { showingSignUp = true }) {

@@ -37,13 +37,12 @@ wheels/
 MANIFEST
 
 # Virtual environments
-.env
-.venv
-env/
 venv/
+env/
 ENV/
 env.bak/
 venv.bak/
+easyocr_server/venv/
 
 # macOS
 .DS_Store
@@ -82,6 +81,93 @@ AuthKey_*.p8
 # Backup files
 *.backup.*
 *.corrupted
+
+# Python virtual environments
+easyocr_server/venv/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Xcode
+*.pbxuser
+*.perspectivev3
+*.mode1v3
+*.mode2v3
+*~.nib
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+easyocr_server/venv/
+
+# Xcode
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+!*.xcodeproj/project.xcworkspace/
+*.xcworkspace/*
+!*.xcworkspace/contents.xcworkspacedata
+xcuserdata/
+*.moved-aside
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+
+# Backup files
+backup/
+*.backup
+*.old
+
+# Temporary files
+*.tmp
+*.temp
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# App Store Connect API Key
+AuthKey_*.p8
 
 # Python virtual environments
 easyocr_server/venv/
