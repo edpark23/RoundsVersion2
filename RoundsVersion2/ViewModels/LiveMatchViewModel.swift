@@ -10,10 +10,12 @@ class LiveMatchViewModel: ObservableObject {
     @Published var isLiveUpdateActive = true
     @Published var matchStartTime = Date()
     @Published var formattedMatchTime = "00:00"
+    @Published var isMatchCompleted = false
     
     private let matchId: String
     private let db = Firestore.firestore()
     private var matchTimer: Timer?
+    @Published private var rankingViewModel = RankingViewModel()
     
     init(matchId: String) {
         self.matchId = matchId
@@ -162,6 +164,68 @@ class LiveMatchViewModel: ObservableObject {
                     }
                 }
             }
+    }
+    
+    func completeMatch() async {
+        guard let currentUserId = currentUser?.id,
+              let currentUserScores = scores[currentUserId],
+              let opponentEntry = scores.first(where: { $0.key != currentUserId }) else {
+            print("Cannot complete match - missing data")
+            return
+        }
+        
+        let opponentScores = opponentEntry.value
+        let currentUserTotal = currentUserScores.compactMap { $0 }.reduce(0, +)
+        let opponentTotal = opponentScores.compactMap { $0 }.reduce(0, +)
+        let opponentId = opponentEntry.key
+        
+        // Get opponent ELO from Firestore
+        do {
+            let opponentDoc = try await db.collection("users").document(opponentId).getDocument()
+            let opponentElo = opponentDoc.data()?["elo"] as? Int ?? 1200
+            
+            // Process ELO ranking
+            rankingViewModel.processMatchResult(
+                opponentId: opponentId,
+                opponentElo: opponentElo,
+                playerScore: currentUserTotal,
+                opponentScore: opponentTotal
+            )
+            
+            // Update match status in Firestore
+            try await db.collection("matches").document(matchId).updateData([
+                "status": "completed",
+                "completedAt": FieldValue.serverTimestamp(),
+                "finalScores": [
+                    currentUserId: currentUserTotal,
+                    opponentId: opponentTotal
+                ],
+                "winnerId": currentUserTotal <= opponentTotal ? currentUserId : opponentId
+            ])
+            
+            isMatchCompleted = true
+            print("Match completed successfully with ELO processing")
+            
+        } catch {
+            print("Error completing match: \(error)")
+        }
+    }
+    
+    func getMatchResult() -> (playerWon: Bool, strokeDifference: Int)? {
+        guard let currentUserId = currentUser?.id,
+              let currentUserScores = scores[currentUserId],
+              let opponentEntry = scores.first(where: { $0.key != currentUserId }) else {
+            return nil
+        }
+        
+        let opponentScores = opponentEntry.value
+        let currentUserTotal = currentUserScores.compactMap { $0 }.reduce(0, +)
+        let opponentTotal = opponentScores.compactMap { $0 }.reduce(0, +)
+        
+        return (
+            playerWon: currentUserTotal <= opponentTotal,
+            strokeDifference: abs(currentUserTotal - opponentTotal)
+        )
     }
     
     deinit {

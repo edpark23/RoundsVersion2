@@ -283,6 +283,29 @@ struct LiveMatchView: View {
             .primaryButton()
             .interactiveButton()
             
+            // Complete Match Button (show when all 18 holes are done)
+            if isMatchReadyToComplete() {
+                Button(action: {
+                    Task {
+                        await viewModel.completeMatch()
+                    }
+                }) {
+                    HStack(spacing: AppSpacing.small) {
+                        Image(systemName: "checkmark.circle.fill")
+                        Text("Complete Match")
+                    }
+                    .font(AppTypography.bodyLarge)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 56)
+                }
+                .background(AppColors.success)
+                .cornerRadius(12)
+                .interactiveButton()
+                .padding(.bottom, AppSpacing.medium)
+            }
+            
             // Secondary actions
             HStack(spacing: AppSpacing.medium) {
                 Button(action: {
@@ -339,6 +362,17 @@ struct LiveMatchView: View {
     }
     
     // MARK: - Helper Functions
+    private func isMatchReadyToComplete() -> Bool {
+        // Check if both players have completed all 18 holes
+        guard let currentUserId = viewModel.currentUser?.id else { return false }
+        
+        let allPlayersHave18Scores = viewModel.scores.allSatisfy { (playerId, scores) in
+            scores.count == 18 && scores.allSatisfy { $0 != nil }
+        }
+        
+        return allPlayersHave18Scores && !viewModel.isMatchCompleted
+    }
+    
     private func getCurrentHolePar() -> Int {
         guard currentHole <= tee.holes.count else { return 4 }
         return tee.holes[currentHole - 1].par

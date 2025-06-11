@@ -19,16 +19,22 @@ struct MainView: View {
                     .scaleEffect(selectedTab == 0 ? 1 : 0.95)
                     .animation(AppAnimations.smoothSpring, value: selectedTab)
                 
-                // Profile Tab
-                ProfileView()
+                // Ranking Tab
+                RankingView()
                     .opacity(selectedTab == 1 ? 1 : 0)
                     .scaleEffect(selectedTab == 1 ? 1 : 0.95)
                     .animation(AppAnimations.smoothSpring, value: selectedTab)
                 
-                // Settings Tab
-                SettingsView()
+                // Profile Tab
+                ProfileView()
                     .opacity(selectedTab == 2 ? 1 : 0)
                     .scaleEffect(selectedTab == 2 ? 1 : 0.95)
+                    .animation(AppAnimations.smoothSpring, value: selectedTab)
+                
+                // Settings Tab
+                SettingsView()
+                    .opacity(selectedTab == 3 ? 1 : 0)
+                    .scaleEffect(selectedTab == 3 ? 1 : 0.95)
                     .animation(AppAnimations.smoothSpring, value: selectedTab)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -64,7 +70,7 @@ struct MainView: View {
     // MARK: - Modern Tab Bar
     private var modernTabBar: some View {
         HStack(spacing: 0) {
-            ForEach(0..<3) { index in
+            ForEach(0..<4) { index in
                 tabBarItem(for: index)
                     .frame(maxWidth: .infinity)
                     .contentShape(Rectangle())
@@ -93,12 +99,21 @@ struct MainView: View {
                             .matchedGeometryEffect(id: "tabSelection", in: tabTransition)
                         Spacer()
                         Spacer()
+                        Spacer()
                     } else if selectedTab == 1 {
                         Spacer()
                         selectionIndicator
                             .matchedGeometryEffect(id: "tabSelection", in: tabTransition)
                         Spacer()
+                        Spacer()
+                    } else if selectedTab == 2 {
+                        Spacer()
+                        Spacer()
+                        selectionIndicator
+                            .matchedGeometryEffect(id: "tabSelection", in: tabTransition)
+                        Spacer()
                     } else {
+                        Spacer()
                         Spacer()
                         Spacer()
                         selectionIndicator
@@ -183,8 +198,9 @@ struct MainView: View {
     private func tabInfo(for index: Int) -> (String, String) {
         switch index {
         case 0: return ("house.fill", "Home")
-        case 1: return ("person.circle.fill", "Profile") 
-        case 2: return ("gear", "Settings")
+        case 1: return ("chart.bar.fill", "Rankings")
+        case 2: return ("person.circle.fill", "Profile")
+        case 3: return ("gear", "Settings")
         default: return ("house.fill", "Home")
         }
     }
