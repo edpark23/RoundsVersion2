@@ -364,7 +364,7 @@ struct LiveMatchView: View {
     // MARK: - Helper Functions
     private func isMatchReadyToComplete() -> Bool {
         // Check if both players have completed all 18 holes
-        guard let currentUserId = viewModel.currentUser?.id else { return false }
+        guard viewModel.currentUser?.id != nil else { return false }
         
         let allPlayersHave18Scores = viewModel.scores.allSatisfy { (playerId, scores) in
             scores.count == 18 && scores.allSatisfy { $0 != nil }

@@ -135,13 +135,8 @@ class TournamentViewModel: ObservableObject {
     private func initializeFirebaseIfNeeded() {
         guard !hasInitializedFirebase else { return }
         
-        do {
-            db = Firestore.firestore()
-            hasInitializedFirebase = true
-        } catch {
-            print("Failed to initialize Firestore: \(error)")
-            setupMockData() // Fallback to mock data
-        }
+        db = Firestore.firestore()
+        hasInitializedFirebase = true
     }
     
     // MARK: - Public Methods

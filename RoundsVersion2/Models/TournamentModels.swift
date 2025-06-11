@@ -228,6 +228,10 @@ struct LeaderboardEntry: Codable, Identifiable {
             return "E"
         }
     }
+    
+    private enum CodingKeys: String, CodingKey {
+        case userId, userName, userElo, currentPosition, totalScore, roundScores, isCurrentUser, avatar
+    }
 }
 
 // MARK: - Tournament Participant

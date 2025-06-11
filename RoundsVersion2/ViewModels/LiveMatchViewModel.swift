@@ -134,11 +134,11 @@ class LiveMatchViewModel: ObservableObject {
         matchTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             
-            let elapsed = Date().timeIntervalSince(self.matchStartTime)
-            let minutes = Int(elapsed) / 60
-            let seconds = Int(elapsed) % 60
-            
-            DispatchQueue.main.async {
+            Task { @MainActor in
+                let elapsed = Date().timeIntervalSince(self.matchStartTime)
+                let minutes = Int(elapsed) / 60
+                let seconds = Int(elapsed) % 60
+                
                 self.formattedMatchTime = String(format: "%02d:%02d", minutes, seconds)
             }
         }
