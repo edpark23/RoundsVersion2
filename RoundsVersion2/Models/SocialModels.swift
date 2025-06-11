@@ -107,6 +107,22 @@ struct FriendUser: Identifiable, Codable {
     }
 }
 
+struct FriendRequest: Identifiable, Codable {
+    let id: String
+    let fromUser: FriendUser
+    let toUserId: String
+    let status: FriendshipStatus
+    let createdAt: Date
+    
+    init(id: String = UUID().uuidString, fromUser: FriendUser, toUserId: String, status: FriendshipStatus = .pending) {
+        self.id = id
+        self.fromUser = fromUser
+        self.toUserId = toUserId
+        self.status = status
+        self.createdAt = Date()
+    }
+}
+
 // MARK: - Chat Models
 
 enum ChatType: String, CaseIterable, Codable {

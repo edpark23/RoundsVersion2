@@ -79,6 +79,9 @@ struct RoundsVersion2App: App {
                         isInitializing = false
                     }
                     
+                    // Phase 6: Initialize Modular Architecture
+                    await initializePhase6()
+                    
                     // Keep splash screen visible for at least 1.8 seconds
                     try? await Task.sleep(nanoseconds: 1_800_000_000)
                     
@@ -104,6 +107,43 @@ struct RoundsVersion2App: App {
                 }
             }
         }
+    }
+    
+    // MARK: - Phase 6 Initialization
+    private func initializePhase6() async {
+        // Initialize Modular Architecture
+        if FeatureFlags.useModularArchitecture {
+            await initializeModularArchitecture()
+        }
+        
+        // Initialize Performance Dashboard
+        if FeatureFlags.usePerformanceDashboard {
+            await MainActor.run {
+                PerformanceDashboard.shared.startMonitoring()
+            }
+        }
+        
+        // Initialize Plugin System
+        if FeatureFlags.enablePluginSystem {
+            await initializePluginSystem()
+        }
+        
+        print("✅ Phase 6: Modular Architecture & Scalability initialized")
+    }
+    
+    private func initializeModularArchitecture() async {
+        // Register core modules
+        let moduleManager = await MainActor.run { ModuleManager.shared }
+        
+        // Example module registration would go here
+        print("🏗️ Modular architecture initialized")
+    }
+    
+    private func initializePluginSystem() async {
+        let pluginManager = await MainActor.run { PluginManager.shared }
+        
+        // Core plugins are loaded automatically in PluginManager init
+        print("🔌 Plugin system initialized")
     }
 }
 
