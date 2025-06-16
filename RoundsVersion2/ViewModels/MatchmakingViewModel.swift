@@ -34,7 +34,8 @@ final class ListenerManager {
 @MainActor
 class MatchmakingViewModel: ObservableObject {
     @Published var matchState: MatchState = .searching
-    @Published var opponent: UserProfile?
+    @Published var opponent: UserProfile? // Keep for backward compatibility
+    @Published var opponents: [UserProfile] = [] // New array for multiple opponents
     @Published var shouldNavigateToMatch = false
     @Published var errorMessage: String?
     @Published var matchId: String?
@@ -103,7 +104,7 @@ class MatchmakingViewModel: ObservableObject {
                 // Fetch opponent profile
                 let opponentDoc = try await db.collection("users").document(opponentId).getDocument()
                 if let data = opponentDoc.data() {
-                    self.opponent = UserProfile(
+                    let opponentProfile = UserProfile(
                         id: opponentId,
                         fullName: data["fullName"] as? String ?? "",
                         email: data["email"] as? String ?? "",
@@ -112,8 +113,67 @@ class MatchmakingViewModel: ObservableObject {
                         isAdmin: data["isAdmin"] as? Bool ?? false,
                         profilePictureURL: data["profilePictureURL"] as? String
                     )
+                    
+                    // Update both single opponent (backward compatibility) and opponents array
+                    self.opponent = opponentProfile
+                    self.opponents = [opponentProfile]
                     self.matchState = .found
                 }
+                
+                // Start listening for match updates
+                self.listenToMatch()
+            } catch {
+                self.errorMessage = error.localizedDescription
+            }
+        }
+    }
+    
+    // Function to create match with multiple opponents (for group matchmaking)
+    private func createMatch(withOpponents opponentIds: [String]) {
+        guard let userId = currentUserId else { return }
+        let db = Firestore.firestore()
+        
+        // Stop searching and expanding ELO range once we find a match
+        listeners.searchListener?.remove()
+        listeners.expansionTimer?.invalidate()
+        
+        Task {
+            do {
+                let matchRef = db.collection("matches").document()
+                self.matchId = matchRef.documentID
+                
+                let allPlayers = [userId] + opponentIds
+                let matchData = MatchData(
+                    players: allPlayers,
+                    status: "pending",
+                    timestamp: FieldValue.serverTimestamp()
+                )
+                
+                try await matchRef.setData(matchData.asDictionary)
+                
+                // Fetch all opponent profiles
+                var opponentProfiles: [UserProfile] = []
+                
+                for opponentId in opponentIds {
+                    let opponentDoc = try await db.collection("users").document(opponentId).getDocument()
+                    if let data = opponentDoc.data() {
+                        let opponentProfile = UserProfile(
+                            id: opponentId,
+                            fullName: data["fullName"] as? String ?? "",
+                            email: data["email"] as? String ?? "",
+                            elo: data["elo"] as? Int ?? 1200,
+                            createdAt: (data["createdAt"] as? Timestamp)?.dateValue() ?? Date(),
+                            isAdmin: data["isAdmin"] as? Bool ?? false,
+                            profilePictureURL: data["profilePictureURL"] as? String
+                        )
+                        opponentProfiles.append(opponentProfile)
+                    }
+                }
+                
+                // Update opponents array and set first opponent for backward compatibility
+                self.opponents = opponentProfiles
+                self.opponent = opponentProfiles.first
+                self.matchState = .found
                 
                 // Start listening for match updates
                 self.listenToMatch()

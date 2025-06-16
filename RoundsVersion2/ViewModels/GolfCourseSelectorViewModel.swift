@@ -1,5 +1,6 @@
 import Foundation
 import FirebaseFirestore
+import FirebaseAuth
 
 @MainActor
 class GolfCourseSelectorViewModel: ObservableObject {
@@ -12,6 +13,46 @@ class GolfCourseSelectorViewModel: ObservableObject {
     private let db = Firestore.firestore()
     private let pageSize = 5 // Smaller batch size to prevent message too large errors
     private var lastDocument: DocumentSnapshot?
+    private var authStateListener: AuthStateDidChangeListenerHandle?
+    
+    init() {
+        // Initialize with clean state
+        print("🏌️ GolfCourseSelectorViewModel initialized")
+        setupAuthListener()
+    }
+    
+    deinit {
+        if let listener = authStateListener {
+            Auth.auth().removeStateDidChangeListener(listener)
+        }
+    }
+    
+    private func setupAuthListener() {
+        authStateListener = Auth.auth().addStateDidChangeListener { [weak self] _, user in
+            Task { @MainActor in
+                if user != nil {
+                    print("🔐 Auth state changed - user authenticated, auto-loading courses")
+                    // Only load if we don't have courses already
+                    if self?.courses.isEmpty == true && self?.isLoading == false {
+                        await self?.loadCourses()
+                    }
+                } else {
+                    print("🔐 Auth state changed - user not authenticated")
+                    self?.courses = []
+                    self?.error = "Please sign in to view golf courses"
+                }
+            }
+        }
+    }
+    
+    func resetAndReload() async {
+        print("🔄 Resetting ViewModel state and reloading...")
+        lastDocument = nil
+        courses = []
+        error = nil
+        hasMoreCourses = true
+        await loadCourses()
+    }
     
     struct HoleDetails: Hashable {
         let number: Int
@@ -49,14 +90,27 @@ class GolfCourseSelectorViewModel: ObservableObject {
     }
     
     func loadCourses() async {
-        guard !isLoading else { return }
+        guard !isLoading else { 
+            print("⚠️ Already loading courses, skipping...")
+            return 
+        }
         
+        // Check if user is authenticated
+        guard Auth.auth().currentUser != nil else {
+            print("❌ User not authenticated, cannot load courses")
+            error = "Please sign in to view golf courses"
+            return
+        }
+        
+        print("🏌️ Starting to load courses from Firebase...")
+        print("🔐 User authenticated: \(Auth.auth().currentUser?.uid ?? "unknown")")
         isLoading = true
         error = nil
         
         // Reset if this is a fresh load
         if lastDocument == nil {
             courses = []
+            print("🔄 Fresh load - clearing existing courses")
         }
         
         do {
@@ -65,18 +119,30 @@ class GolfCourseSelectorViewModel: ObservableObject {
             // If we have a last document, start after it for pagination
             if let lastDocument = lastDocument {
                 query = query.start(afterDocument: lastDocument)
+                print("📄 Continuing pagination from last document")
             }
             
+            print("🔍 Executing Firebase query...")
             let snapshot = try await query.getDocuments()
+            print("📊 Firebase query completed. Found \(snapshot.documents.count) documents")
             
             // Update the last document for pagination
             lastDocument = snapshot.documents.last
             
             // Check if we've reached the end
             hasMoreCourses = snapshot.documents.count == pageSize
+            print("📈 Has more courses: \(hasMoreCourses)")
+            
+            // Debug: Print first few document IDs
+            if !snapshot.documents.isEmpty {
+                let documentIds = snapshot.documents.prefix(3).map { $0.documentID }
+                print("📋 First few document IDs: \(documentIds)")
+            }
             
             let newCourses = snapshot.documents.compactMap { (document: QueryDocumentSnapshot) -> GolfCourseDetails? in
                 let data = document.data()
+                print("🔍 Processing document \(document.documentID)")
+                print("📄 Document data keys: \(Array(data.keys))")
                 
                 guard let clubName = data["club_name"] as? String,
                       let courseName = data["course_name"] as? String,
@@ -84,9 +150,12 @@ class GolfCourseSelectorViewModel: ObservableObject {
                       let city = location["city"] as? String,
                       let state = location["state"] as? String
                 else { 
-                    print("Failed to parse basic course data for document: \(document.documentID)")
+                    print("❌ Failed to parse basic course data for document: \(document.documentID)")
+                    print("📄 Available data: \(data)")
                     return nil 
                 }
+                
+                print("✅ Successfully parsed course: \(clubName) in \(city), \(state)")
                 
                 // Create a simplified version of the course with minimal data
                 // We'll load the full details only when a course is selected
@@ -102,13 +171,22 @@ class GolfCourseSelectorViewModel: ObservableObject {
             
             // Append new courses to existing ones
             courses.append(contentsOf: newCourses)
-            print("Loaded \(newCourses.count) courses, total: \(courses.count)")
+            print("✅ Successfully loaded \(newCourses.count) courses, total: \(courses.count)")
+            
+            // If no courses were found and this is the first load, provide helpful message
+            if courses.isEmpty && lastDocument == nil {
+                print("⚠️ No courses found in Firebase. Database might be empty.")
+                error = "No golf courses found. Please check if course data has been imported."
+            }
+            
         } catch {
             self.error = "Failed to load courses: \(error.localizedDescription)"
-            print("Error loading courses: \(error)")
+            print("❌ Error loading courses: \(error)")
+            print("🔍 Error details: \(error)")
         }
         
         isLoading = false
+        print("🏁 Course loading completed. Final count: \(courses.count)")
     }
     
     // New method to load full course details when needed

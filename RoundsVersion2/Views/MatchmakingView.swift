@@ -7,78 +7,65 @@ struct MatchmakingView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.presentationMode) private var presentationMode
     
+    // Navigation state for buttons
+    @State private var showingChatRoom = false
+    @State private var navigateToRoundSetup = false
+    @State private var navigateToCourseSelector = false
+    @State private var roundSettings: RoundSettings?
+    
     var body: some View {
-        NavigationStack {
-            ZStack {
-                // Main background
-                Color.white.ignoresSafeArea()
-                
-                VStack(spacing: 0) {
-                    // Blue header background that extends to the top edge
-                    Color(red: 0/255, green: 75/255, blue: 143/255) // #004B8F - matches HomeView
-                        .frame(height: 100)
-                        .ignoresSafeArea(edges: .top)
-                        .overlay(
-                            // Title centered in the visible portion of the blue area
-                            Text(viewModel.matchState == .found ? "MATCH FOUND" : "MATCHMAKING")
-                                .font(.system(size: 18, weight: .bold))
-                                .foregroundColor(.white)
-                                .padding(.top, 50) // Position below the status bar area
-                        )
-                        .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 2)
-                    
-                    // Main content area
-                    VStack(spacing: 24) {
-                        if viewModel.matchState == .searching {
-                            // Searching Animation
-                            searchingView
-                        } else if viewModel.matchState == .found {
-                            // Match Found UI - updated to match home design
-                            matchFoundView
-                        }
-                        
-                        // Cancel/Close button with consistent styling
-                        Button {
-                            if viewModel.matchState == .searching {
-                                viewModel.cancelMatchmaking()
-                            }
-                            dismiss()
-                        } label: {
-                            Text("CANCEL")
-                                .font(.system(size: 14, weight: .bold))
-                                .tracking(0.5)
-                                .foregroundColor(.red)
-                                .padding()
-                                .frame(maxWidth: .infinity)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 22)
-                                        .stroke(Color.red.opacity(0.3), lineWidth: 1.5)
-                                        .background(Color.white)
-                                        .cornerRadius(22)
-                                )
-                                .padding(.horizontal)
-                        }
-                    }
-                    .padding(.top, 24)
-                    
-                    Spacer() // Push content to the top
+        ZStack {
+            Color.white.ignoresSafeArea()
+            VStack(spacing: 0) {
+                if viewModel.matchState == .searching {
+                    searchingView
+                } else if viewModel.matchState == .found {
+                    matchFoundView
                 }
-                .edgesIgnoringSafeArea(.top) // Ensure content goes to the top edge
-                
-                .onAppear {
-                    viewModel.startMatchmaking()
-                }
-                .navigationDestination(isPresented: $viewModel.shouldNavigateToMatch) {
-                    if let opponent = viewModel.opponent, let matchId = viewModel.matchId {
-                        MatchView(matchId: matchId, opponent: opponent)
-                            .environment(\.dismissToRoot, { 
-                                viewModel.shouldNavigateToMatch = false
-                                dismiss()
-                            })
-                    }
-                }
+                // Cancel/Close button (if needed, can be placed at the bottom or as per design)
             }
-            .navigationBarHidden(true)
+            .onAppear {
+                viewModel.matchState = .found // Temporary override for testing
+                viewModel.startMatchmaking()
+            }
+        }
+        .navigationBarHidden(true)
+        .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
+        .sheet(isPresented: $showingChatRoom) {
+            NavigationStack {
+                MatchChatView(
+                    matchId: viewModel.matchId ?? "",
+                    opponents: viewModel.opponents
+                )
+            }
+        }
+        .navigationDestination(isPresented: $navigateToRoundSetup) {
+            RoundSetupView(
+                onSetupComplete: { settings in
+                    // Save settings and proceed to course selection
+                    self.roundSettings = settings
+                    // Navigate to course selection
+                    navigateToCourseSelector = true
+                },
+                onCancel: {
+                    // Handle round setup cancellation - go back
+                    navigateToRoundSetup = false
+                }
+            )
+            .navigationBarBackButtonHidden(true)
+        }
+        .navigationDestination(isPresented: $navigateToCourseSelector) {
+            GolfCourseSelectorView { course, tee in
+                // Handle course and tee selection
+                print("Selected course: \(course.clubName)")
+                print("Selected tee: \(tee.teeName)")
+                // TODO: Continue to round confirmation or start round
+                // For now, navigate back to previous screen
+                navigateToCourseSelector = false
+                navigateToRoundSetup = false
+            }
+            .navigationBarBackButtonHidden(true)
         }
     }
     
@@ -123,96 +110,124 @@ struct MatchmakingView: View {
         .padding(.horizontal)
     }
     
-    // Match found view - redesigned to match home screen style
+    // Match found view - refined to match PNG more closely
     private var matchFoundView: some View {
-        VStack(spacing: 20) {
-            // Success checkmark
-            ZStack {
-                Circle()
-                    .fill(Color.green.opacity(0.1))
-                    .frame(width: 100, height: 100)
-                
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 60))
-                    .foregroundColor(Color.green)
-            }
-            .padding(.bottom, 4)
-            
-            if let opponent = viewModel.opponent {
-                // Opponent profile card - styled like the home profile card
-                ZStack {
-                    // Card background with shadow
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.white)
-                        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
-                    
-                    VStack(spacing: 16) {
-                        // Profile image/initials
-                        ZStack {
-                            Circle()
-                                .fill(Color(red: 0/255, green: 75/255, blue: 143/255)) // #004B8F
-                                .frame(width: 80, height: 80)
-                            
-                            Text(opponent.initials)
-                                .font(.system(size: 30, weight: .bold))
-                                .foregroundColor(.white)
-                        }
-                        
-                        // Player name
-                        Text(opponent.fullName.uppercased())
-                            .font(.system(size: 16, weight: .bold))
-                            .tracking(0.5)
-                            .foregroundColor(Color(red: 0/255, green: 75/255, blue: 143/255)) // #004B8F
-                        
-                        // ELO/Handicap display
-                        HStack(spacing: 6) {
-                            Image(systemName: "star.fill")
-                                .font(.system(size: 14))
-                                .foregroundColor(.yellow)
-                            
-                            Text("HI: \(String(format: "%.1f", Double(opponent.elo) / 100.0))")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.black)
-                        }
-                        
-                        // Stats section
-                        HStack(spacing: 24) {
-                            statItem(title: "ELO", value: "\(opponent.elo)")
-                            statItem(title: "RANK", value: "#\(opponent.elo / 10)")
-                        }
-                        .padding(.vertical, 10)
-                        .padding(.horizontal, 30)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color(red: 200/255, green: 200/255, blue: 200/255), lineWidth: 1)
-                        )
-                        .padding(.top, 4)
+        VStack(spacing: 0) {
+            // Header - restored full design without problematic ignoresSafeArea
+            VStack {
+                HStack {
+                    Button(action: {
+                        dismiss()
+                    }) {
+                        Image(systemName: "arrow.left")
+                            .foregroundColor(.white)
+                            .font(.title2)
                     }
-                    .padding(24)
+                    .padding(.leading, 16)
+                    
+                    Spacer()
+                    
+                    Text("ROUNDS")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .multilineTextAlignment(.center)
+                    
+                    Spacer()
+                    
+                    Image(systemName: "line.3.horizontal")
+                        .foregroundColor(.white)
+                        .font(.title2)
+                        .padding(.trailing, 16)
                 }
-                .padding(.horizontal)
+                .frame(height: 100)
             }
-            
-            // Accept match button
-            Button {
-                viewModel.acceptMatch()
-            } label: {
-                Text("ACCEPT MATCH")
+            .frame(maxWidth: .infinity)
+            .background(Color(red: 0/255, green: 75/255, blue: 143/255))
+
+            // Competitive Lobby
+            VStack(alignment: .leading, spacing: 0) {
+                Text("COMPETITIVE LOBBY")
                     .font(.system(size: 14, weight: .bold))
-                    .tracking(0.5)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 44)
-                    .background(
-                        RoundedRectangle(cornerRadius: 22)
-                            .fill(Color(red: 0/255, green: 75/255, blue: 143/255)) // #004B8F
-                            .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 2)
-                    )
+                    .foregroundColor(.black)
+                    .padding(.leading, 20)
+                    .padding(.top, 24)
+                    .padding(.bottom, 8)
+
+                VStack(spacing: 16) {
+                    ForEach(viewModel.opponents, id: \.id) { opponent in
+                        OpponentRowView(opponent: opponent)
+                    }
+                    
+                    // Show empty slots if no opponents yet (for loading state)
+                    if viewModel.opponents.isEmpty {
+                        ForEach(0..<1) { _ in
+                            OpponentRowView(opponent: nil)
+                        }
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.bottom, 8)
             }
-            .padding(.horizontal)
-            .padding(.top, 8)
+            .background(Color.white)
+            .cornerRadius(16)
+            .padding(.horizontal, 0)
+            .padding(.top, 0)
+
+            Spacer()
+
+            // Info note
+            Text("*You must set up a round to play your solo queue within 3 days of matching. If play does not occur, there may be a penalty.")
+                .font(.system(size: 13))
+                .foregroundColor(.black)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 12)
+
+            // Action buttons
+            VStack(spacing: 16) {
+                Button(action: {
+                    // Add haptic feedback
+                    let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                    impactFeedback.impactOccurred()
+                    showingChatRoom = true
+                }) {
+                    Text("Chat With Players")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(Color(red: 0/255, green: 75/255, blue: 143/255))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 52)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 28)
+                                .stroke(Color(red: 0/255, green: 75/255, blue: 143/255), lineWidth: 2)
+                        )
+                }
+                .scaleEffect(showingChatRoom ? 0.95 : 1.0)
+                .animation(.easeInOut(duration: 0.1), value: showingChatRoom)
+                
+                Button(action: {
+                    // Add haptic feedback
+                    let impactFeedback = UIImpactFeedbackGenerator(style: .heavy)
+                    impactFeedback.impactOccurred()
+                    navigateToRoundSetup = true
+                }) {
+                    Text("Start Round")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 52)
+                        .background(
+                            RoundedRectangle(cornerRadius: 28)
+                                .fill(Color(red: 0/255, green: 75/255, blue: 143/255))
+                        )
+                }
+                .scaleEffect(navigateToRoundSetup ? 0.95 : 1.0)
+                .animation(.easeInOut(duration: 0.1), value: navigateToRoundSetup)
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 24)
         }
-        .padding(.vertical, 16)
+        .background(Color.white.ignoresSafeArea())
     }
     
     // Helper function to create stat items
@@ -225,6 +240,245 @@ struct MatchmakingView: View {
             Text(value)
                 .font(.system(size: 18, weight: .bold))
                 .foregroundColor(Color(red: 0/255, green: 75/255, blue: 143/255)) // #004B8F
+        }
+    }
+}
+
+// MARK: - Opponent Row Component
+struct OpponentRowView: View {
+    let opponent: UserProfile?
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Profile Image
+            if let opponent = opponent, let profileURL = opponent.profilePictureURL, !profileURL.isEmpty {
+                AsyncImage(url: URL(string: profileURL)) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Circle()
+                        .fill(AppColors.lightBlue)
+                        .overlay(
+                            Text(opponent.initials)
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(AppColors.primaryBlue)
+                        )
+                }
+                .frame(width: 56, height: 56)
+                .clipShape(Circle())
+                .overlay(
+                    Circle().stroke(Color.gray.opacity(0.2), lineWidth: 2)
+                )
+            } else if let opponent = opponent {
+                // Show initials for opponents without profile pictures
+                Circle()
+                    .fill(AppColors.lightBlue)
+                    .frame(width: 56, height: 56)
+                    .overlay(
+                        Text(opponent.initials)
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(AppColors.primaryBlue)
+                    )
+                    .overlay(
+                        Circle().stroke(Color.gray.opacity(0.2), lineWidth: 2)
+                    )
+            } else {
+                // Placeholder for loading state
+                Circle()
+                    .fill(Color.gray.opacity(0.1))
+                    .frame(width: 56, height: 56)
+                    .overlay(
+                        Circle().stroke(Color.gray.opacity(0.2), lineWidth: 2)
+                    )
+            }
+            
+            // Name and ELO
+            VStack(alignment: .leading, spacing: 4) {
+                Text(opponent?.fullName ?? "Loading...")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(.black)
+                
+                if let opponent = opponent {
+                    Text("ELO: \(opponent.elo)")
+                        .font(.system(size: 14))
+                        .foregroundColor(AppColors.subtleGray)
+                }
+            }
+            
+            Spacer()
+            
+            // View Career Button
+            Button(action: {
+                // TODO: Navigate to opponent's career/profile
+                print("View career for: \(opponent?.fullName ?? "unknown")")
+            }) {
+                Text("View Career")
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundColor(Color(red: 0/255, green: 75/255, blue: 143/255))
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 18)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 22)
+                            .stroke(Color(red: 0/255, green: 75/255, blue: 143/255), lineWidth: 1)
+                    )
+            }
+        }
+        .frame(height: 80)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                .background(Color.white)
+        )
+    }
+}
+
+// MARK: - Match Chat View (Simple Implementation)
+struct MatchChatView: View {
+    let matchId: String
+    let opponents: [UserProfile]
+    @Environment(\.dismiss) private var dismiss
+    @State private var messageText = ""
+    @State private var messages: [String] = []
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            VStack {
+                HStack {
+                    Button("Done") {
+                        dismiss()
+                    }
+                    .foregroundColor(AppColors.primaryBlue)
+                    
+                    Spacer()
+                    
+                    Text("Match Chat")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                    
+                    Spacer()
+                    
+                    // Match info button (placeholder)
+                    Button {
+                        // TODO: Show match info
+                    } label: {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(AppColors.primaryBlue)
+                    }
+                }
+                .padding()
+                .background(AppColors.surfacePrimary)
+                
+                // Participants
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(opponents, id: \.id) { opponent in
+                            VStack(spacing: 4) {
+                                Circle()
+                                    .fill(AppColors.lightBlue)
+                                    .frame(width: 40, height: 40)
+                                    .overlay(
+                                        Text(opponent.initials)
+                                            .font(.caption)
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(AppColors.primaryBlue)
+                                    )
+                                
+                                Text(opponent.fullName.components(separatedBy: " ").first ?? "")
+                                    .font(.caption2)
+                                    .foregroundColor(AppColors.textSecondary)
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+                .padding(.bottom, 8)
+            }
+            .background(AppColors.surfacePrimary)
+            
+            Divider()
+            
+            // Messages area
+            if messages.isEmpty {
+                VStack(spacing: 16) {
+                    Spacer()
+                    
+                    Image(systemName: "message.badge")
+                        .font(.system(size: 48))
+                        .foregroundColor(AppColors.textTertiary)
+                    
+                    Text("Start the conversation!")
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                        .foregroundColor(AppColors.textPrimary)
+                    
+                    Text("Say hello to your match partners and discuss your upcoming round.")
+                        .font(.body)
+                        .foregroundColor(AppColors.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                    
+                    Spacer()
+                }
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 8) {
+                        ForEach(Array(messages.enumerated()), id: \.offset) { _, message in
+                            Text(message)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(AppColors.backgroundSecondary)
+                                .cornerRadius(12)
+                                .padding(.horizontal)
+                        }
+                    }
+                    .padding(.vertical)
+                }
+            }
+            
+            // Message input
+            VStack(spacing: 0) {
+                Divider()
+                
+                HStack(spacing: 12) {
+                    TextField("Type a message...", text: $messageText)
+                        .textFieldStyle(PlainTextFieldStyle())
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(AppColors.backgroundSecondary)
+                        .cornerRadius(20)
+                        .submitLabel(.send)
+                        .onSubmit {
+                            sendMessage()
+                        }
+                    
+                    Button {
+                        sendMessage()
+                    } label: {
+                        Image(systemName: "arrow.up")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(width: 32, height: 32)
+                            .background(
+                                messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 
+                                AppColors.textTertiary : AppColors.primaryBlue
+                            )
+                            .clipShape(Circle())
+                    }
+                    .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                .padding()
+                .background(AppColors.surfacePrimary)
+            }
+        }
+        .navigationBarHidden(true)
+    }
+    
+    private func sendMessage() {
+        if !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            messages.append("You: \(messageText)")
+            messageText = ""
         }
     }
 }

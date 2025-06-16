@@ -76,8 +76,8 @@ struct RoundActiveView: View {
     
     var body: some View {
         ZStack {
-            // Modern background
-            AppColors.backgroundPrimary.ignoresSafeArea()
+            // Main background
+            Color(red: 0.95, green: 0.95, blue: 0.97).ignoresSafeArea()
             
             VStack(spacing: 0) {
                 // Enhanced header
@@ -192,53 +192,51 @@ struct RoundActiveView: View {
     
     // MARK: - Modern Header
     private var modernHeader: some View {
-        VStack(spacing: 0) {
-            // Status bar background
-            AppColors.primaryBlue
-                .frame(height: 50)
-                .ignoresSafeArea(edges: .top)
+        ZStack {
+            Color(red: 0.0, green: 75/255, blue: 143/255).ignoresSafeArea(edges: .top)
             
-            // Header content
-            HStack {
-                Button(action: {
-                    dismiss()
-                }) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
-                }
-                .interactiveButton()
+            VStack(spacing: 0) {
+                // Status bar space
+                Color.clear.frame(height: 44)
                 
-                Spacer()
-                
-                VStack(spacing: 2) {
-                    Text("LIVE MATCH")
-                        .font(AppTypography.captionLarge)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .liveIndicator()
+                // Navigation bar
+                HStack {
+                    Button(action: {
+                        dismiss()
+                    }) {
+                        Image(systemName: "chevron.left")
+                            .foregroundColor(.white)
+                            .font(.system(size: 20, weight: .semibold))
+                    }
                     
-                    Text(course.clubName)
-                        .font(AppTypography.caption)
-                        .foregroundColor(.white.opacity(0.8))
+                    Spacer()
+                    
+                    VStack(spacing: 2) {
+                        Text("LIVE MATCH")
+                            .foregroundColor(.white)
+                            .font(.system(size: 20, weight: .bold))
+                            .tracking(0.5)
+                        
+                        Text(course.clubName)
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        // Quick stats or settings
+                    }) {
+                        Image(systemName: "line.3.horizontal")
+                            .foregroundColor(.white)
+                            .font(.system(size: 20))
+                    }
                 }
-                
-                Spacer()
-                
-                Button(action: {
-                    // Quick stats or settings
-                }) {
-                    Image(systemName: "chart.line.uptrend.xyaxis")
-                        .font(.system(size: 18))
-                        .foregroundColor(.white)
-                }
-                .interactiveButton()
+                .padding(.horizontal, 16)
+                .padding(.bottom, 10)
             }
-            .padding(.horizontal, AppSpacing.medium)
-            .padding(.bottom, AppSpacing.small)
-            .background(AppColors.primaryBlue)
         }
-        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+        .frame(height: 90)
     }
     
     // MARK: - Live Progress Banner

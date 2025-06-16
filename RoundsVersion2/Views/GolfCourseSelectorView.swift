@@ -41,6 +41,7 @@ struct GolfCourseSelectorView: View {
     @State private var showingTeeSelection = false
     @State private var fullScreenCover: FullScreenCover?
     @State private var loadedTees: [GolfCourseSelectorViewModel.TeeDetails] = []
+    @State private var hasAttemptedInitialLoad = false
     var onCourseAndTeeSelected: ((GolfCourseSelectorViewModel.GolfCourseDetails, GolfCourseSelectorViewModel.TeeDetails, RoundSettings) -> Void)?
     
     // Keep existing initializers for compatibility
@@ -160,21 +161,90 @@ struct GolfCourseSelectorView: View {
                 // Course list
                 ScrollView {
                     LazyVStack(spacing: 12) {
-                        ForEach(viewModel.courses, id: \.id) { course in
-                            Button(action: {
-                                selectedCourse = course
-                                loadTees(for: course)
-                            }) {
-                                CourseCard(
-                                    courseName: course.clubName,
-                                    distance: mockDistance(),
-                                    location: "\(course.city), \(course.state)",
-                                    rating: mockRating(),
-                                    isSelected: selectedCourse?.id == course.id
-                                )
+                        if viewModel.isLoading && viewModel.courses.isEmpty {
+                            // Loading indicator
+                            VStack(spacing: 16) {
+                                ProgressView()
+                                    .scaleEffect(1.2)
+                                    .tint(Color(red: 0.0, green: 75/255, blue: 143/255))
+                                
+                                Text("Loading golf courses...")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(.gray)
                             }
-                            .buttonStyle(PlainButtonStyle())
-                            .padding(.horizontal, 16)
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 60)
+                        } else if viewModel.courses.isEmpty && !viewModel.isLoading {
+                            // Empty state
+                            VStack(spacing: 16) {
+                                Image(systemName: "golf.tee")
+                                    .font(.system(size: 48))
+                                    .foregroundColor(.gray.opacity(0.6))
+                                
+                                Text("No golf courses found")
+                                    .font(.system(size: 18, weight: .medium))
+                                    .foregroundColor(.gray)
+                                
+                                Text("Please check your connection and try again")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.gray.opacity(0.8))
+                                    .multilineTextAlignment(.center)
+                                
+                                Button("Retry") {
+                                    Task {
+                                        await viewModel.resetAndReload()
+                                    }
+                                }
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(Color(red: 0.0, green: 75/255, blue: 143/255))
+                                .padding(.top, 8)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 60)
+                        } else {
+                            ForEach(viewModel.courses, id: \.id) { course in
+                                Button(action: {
+                                    selectedCourse = course
+                                    loadTees(for: course)
+                                }) {
+                                    CourseCard(
+                                        courseName: course.clubName,
+                                        distance: mockDistance(),
+                                        location: "\(course.city), \(course.state)",
+                                        rating: mockRating(),
+                                        isSelected: selectedCourse?.id == course.id
+                                    )
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                                .padding(.horizontal, 16)
+                            }
+                            
+                            // Load more button if there are more courses
+                            if viewModel.hasMoreCourses {
+                                Button(action: {
+                                    Task {
+                                        await viewModel.loadMoreCoursesIfNeeded()
+                                    }
+                                }) {
+                                    HStack {
+                                        if viewModel.isLoading {
+                                            ProgressView()
+                                                .scaleEffect(0.8)
+                                                .tint(.white)
+                                        }
+                                        Text(viewModel.isLoading ? "Loading..." : "Load More Courses")
+                                            .font(.system(size: 16, weight: .medium))
+                                            .foregroundColor(.white)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 44)
+                                    .background(Color(red: 0.0, green: 75/255, blue: 143/255))
+                                    .cornerRadius(22)
+                                }
+                                .disabled(viewModel.isLoading)
+                                .padding(.horizontal, 16)
+                                .padding(.top, 8)
+                            }
                         }
                     }
                     .padding(.top, 16)
@@ -236,10 +306,36 @@ struct GolfCourseSelectorView: View {
         }
         .fullScreenCover(item: $fullScreenCover)
         .onAppear {
-            // Load some sample courses if empty
-            if viewModel.courses.isEmpty {
-                loadSampleCourses()
+            print("🎯 GolfCourseSelectorView appeared. Courses count: \(viewModel.courses.count), isLoading: \(viewModel.isLoading), hasAttemptedLoad: \(hasAttemptedInitialLoad)")
+        }
+        .task {
+            // The ViewModel now handles loading via auth state listener
+            // But we can still trigger a manual load if needed
+            if !hasAttemptedInitialLoad {
+                print("🎯 GolfCourseSelectorView: Checking if manual load needed...")
+                hasAttemptedInitialLoad = true
+                
+                // Only load manually if auth listener hasn't triggered yet
+                if viewModel.courses.isEmpty && !viewModel.isLoading {
+                    print("🎯 GolfCourseSelectorView: Triggering manual load...")
+                    await viewModel.loadCourses()
+                }
+                print("🎯 GolfCourseSelectorView: Initial setup completed")
+            } else {
+                print("🎯 GolfCourseSelectorView: Initial load already attempted, skipping")
             }
+        }
+        .alert("Error Loading Courses", isPresented: .constant(viewModel.error != nil)) {
+            Button("OK") {
+                viewModel.error = nil
+            }
+            Button("Retry") {
+                Task {
+                    await viewModel.resetAndReload()
+                }
+            }
+        } message: {
+            Text(viewModel.error ?? "")
         }
     }
     

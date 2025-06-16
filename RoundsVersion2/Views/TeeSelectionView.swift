@@ -4,10 +4,8 @@ struct TeeSelectionView: View {
     let course: GolfCourseSelectorViewModel.GolfCourseDetails
     let tees: [GolfCourseSelectorViewModel.TeeDetails]
     @Environment(\.dismiss) private var dismiss
-    @State private var selectedTeeId: String? = nil
     @State private var selectedTee: GolfCourseSelectorViewModel.TeeDetails? = nil
     @State private var showingRoundSetup = false
-    @State private var debugMessage = ""
     let onTeeSelected: (GolfCourseSelectorViewModel.TeeDetails) -> Void
     
     // Initialize with a required callback and tees
@@ -23,69 +21,107 @@ struct TeeSelectionView: View {
     }
     
     var body: some View {
-        VStack {
-            // Course name header
-            Text(course.clubName.uppercased())
-                .font(.system(size: 18, weight: .bold))
-                .foregroundColor(.gray)
-                .padding(.vertical, 16)
+        ZStack {
+            // Main background
+            Color(red: 0.95, green: 0.95, blue: 0.97).ignoresSafeArea()
             
-            // Debug message with visible display
-            Text(debugMessage.isEmpty ? "Waiting for selection..." : debugMessage)
-                .font(.system(size: 14))
-                .foregroundColor(debugMessage.isEmpty ? .gray : .red)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 8)
-            
-            // List of tees using native selection
-            List(effectiveTees, id: \.teeName, selection: $selectedTeeId) { tee in
-                TeeRow(tee: tee, isSelected: selectedTeeId == tee.teeName)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        print("🟡 Direct tap on tee row: \(tee.teeName)")
-                        debugMessage = "Selected: \(tee.teeName)"
-                        selectTee(tee)
+            VStack(spacing: 0) {
+                // Navy blue header
+                ZStack {
+                    Color(red: 0.0, green: 75/255, blue: 143/255).ignoresSafeArea(edges: .top)
+                    
+                    VStack(spacing: 0) {
+                        // Status bar space
+                        Color.clear.frame(height: 44)
+                        
+                        // Navigation bar
+                        HStack {
+                            Button(action: {
+                                dismiss()
+                            }) {
+                                Image(systemName: "chevron.left")
+                                    .foregroundColor(.white)
+                                    .font(.system(size: 20, weight: .semibold))
+                            }
+                            
+                            Spacer()
+                            
+                            Text("SELECT TEES")
+                                .foregroundColor(.white)
+                                .font(.system(size: 20, weight: .bold))
+                                .tracking(0.5)
+                            
+                            Spacer()
+                            
+                            Button(action: {
+                                // Menu action
+                            }) {
+                                Image(systemName: "line.3.horizontal")
+                                    .foregroundColor(.white)
+                                    .font(.system(size: 20))
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 10)
                     }
+                }
+                .frame(height: 90)
+                
+                // Course name
+                VStack(spacing: 0) {
+                    Text(course.clubName.uppercased())
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.gray)
+                        .padding(.top, 24)
+                        .padding(.bottom, 20)
+                }
+                
+                // Tee selection list
+                ScrollView {
+                    VStack(spacing: 12) {
+                        ForEach(effectiveTees, id: \.teeName) { tee in
+                            TeeCard(
+                                tee: tee,
+                                isSelected: selectedTee?.teeName == tee.teeName,
+                                onTap: {
+                                    selectedTee = tee
+                                }
+                            )
+                            .padding(.horizontal, 16)
+                        }
+                    }
+                    .padding(.bottom, 100) // Space for continue button
+                }
+                
+                Spacer()
             }
-            .listStyle(PlainListStyle())
             
-            // Continue button appears when a tee is selected
-            if let selectedTee = selectedTee {
+            // Continue button fixed at bottom
+            VStack {
+                Spacer()
+                
                 Button(action: {
-                    print("🚀 Continue button pressed with tee: \(selectedTee.teeName)")
-                    debugMessage = "Showing Round Setup as full-screen sheet"
-                    showingRoundSetup = true
+                    if let selectedTee = selectedTee {
+                        showingRoundSetup = true
+                    }
                 }) {
-                    Text("Continue with \(selectedTee.teeName) Tees")
-                        .font(.headline)
+                    Text("Continue")
+                        .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(AppColors.primaryNavy)
-                        .cornerRadius(10)
-                        .padding()
+                        .frame(height: 56)
+                        .background(
+                            RoundedRectangle(cornerRadius: 28)
+                                .fill(Color(red: 0.0, green: 75/255, blue: 143/255))
+                        )
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 34)
                 }
+                .disabled(selectedTee == nil)
+                .opacity(selectedTee == nil ? 0.6 : 1.0)
             }
         }
-        .navigationBarTitleDisplayMode(.inline)
-        .onChange(of: selectedTeeId) { _, newValue in
-            if let teeId = newValue {
-                print("🟡 selectedTeeId changed to: \(teeId)")
-                if let tee = effectiveTees.first(where: { $0.teeName == teeId }) {
-                    selectedTee = tee
-                }
-            }
-        }
-        .onChange(of: showingRoundSetup) { oldValue, newValue in
-            print("🔵 showingRoundSetup changed from \(oldValue) to \(newValue)")
-        }
-        .onAppear {
-            print("🟢 TeeSelectionView appeared with \(course.tees.count) real tees")
-            print("🟢 Using effectiveTees with \(effectiveTees.count) tees")
-            debugMessage = "Select a tee to continue"
-        }
-        // Present RoundSetupView as a full-screen sheet
+        .navigationBarHidden(true)
         .fullScreenCover(isPresented: $showingRoundSetup) {
             if let tee = selectedTee {
                 NavigationStack {
@@ -93,8 +129,6 @@ struct TeeSelectionView: View {
                         course: course, 
                         tee: tee,
                         onComplete: { course, tee, settings in
-                            // Process final settings and call the original callback
-                            print("🏁 Round setup flow completed with settings")
                             onTeeSelected(tee)
                             showingRoundSetup = false
                         },
@@ -103,20 +137,8 @@ struct TeeSelectionView: View {
                         }
                     )
                 }
-            } else {
-                Text("Error: No tee selected")
-                    .onAppear {
-                        print("❌ ERROR: Attempted to show RoundSetupView but selectedTee is nil")
-                        showingRoundSetup = false
-                    }
             }
         }
-    }
-    
-    private func selectTee(_ tee: GolfCourseSelectorViewModel.TeeDetails) {
-        print("🟡 selectTee called with: \(tee.teeName)")
-        selectedTeeId = tee.teeName
-        selectedTee = tee
     }
     
     // Use either provided tees or course tees
@@ -126,37 +148,110 @@ struct TeeSelectionView: View {
         } else if !course.tees.isEmpty {
             return course.tees
         } else {
-            // Fallback to sample tees in case both are empty
+            // Fallback to sample tees matching the design
             return [
                 .init(
                     type: "male",
-                    teeName: "Blue",
-                    courseRating: 72.5,
-                    slopeRating: 132,
-                    totalYards: 6832,
+                    teeName: "Black",
+                    courseRating: 76.10,
+                    slopeRating: 141,
+                    totalYards: 7206,
                     parTotal: 72,
                     holes: []
                 ),
                 .init(
                     type: "male",
-                    teeName: "White", 
-                    courseRating: 71.2,
-                    slopeRating: 128,
-                    totalYards: 6435,
+                    teeName: "Gold",
+                    courseRating: 73.80,
+                    slopeRating: 137,
+                    totalYards: 6914,
+                    parTotal: 72,
+                    holes: []
+                ),
+                .init(
+                    type: "male",
+                    teeName: "White",
+                    courseRating: 71.70,
+                    slopeRating: 131,
+                    totalYards: 6675,
+                    parTotal: 72,
+                    holes: []
+                ),
+                .init(
+                    type: "male",
+                    teeName: "Green",
+                    courseRating: 69.83,
+                    slopeRating: 125,
+                    totalYards: 6432,
                     parTotal: 72,
                     holes: []
                 ),
                 .init(
                     type: "female",
                     teeName: "Red",
-                    courseRating: 69.8, 
+                    courseRating: 67.48,
                     slopeRating: 120,
-                    totalYards: 5790,
+                    totalYards: 5865,
                     parTotal: 72,
                     holes: []
                 )
             ]
         }
+    }
+}
+
+// Modern tee card component matching the design
+struct TeeCard: View {
+    let tee: GolfCourseSelectorViewModel.TeeDetails
+    let isSelected: Bool
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 8) {
+                    // Tee name and yardage
+                    Text("\(tee.teeName) - \(tee.totalYards) yards")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.black)
+                    
+                    // Rating and slope
+                    HStack(spacing: 16) {
+                        Text("Rating: \(String(format: "%.2f", tee.courseRating))")
+                            .font(.system(size: 14))
+                            .foregroundColor(.gray)
+                        
+                        Text("Slope: \(tee.slopeRating)")
+                            .font(.system(size: 14))
+                            .foregroundColor(.gray)
+                    }
+                }
+                
+                Spacer()
+                
+                // Radio button
+                ZStack {
+                    Circle()
+                        .stroke(isSelected ? Color(red: 0.0, green: 75/255, blue: 143/255) : Color.gray.opacity(0.4), lineWidth: 2)
+                        .frame(width: 24, height: 24)
+                    
+                    if isSelected {
+                        Circle()
+                            .fill(Color(red: 0.0, green: 75/255, blue: 143/255))
+                            .frame(width: 12, height: 12)
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 20)
+            .background(Color.white)
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? Color(red: 0.0, green: 75/255, blue: 143/255) : Color.gray.opacity(0.2), lineWidth: isSelected ? 2 : 1)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
@@ -222,44 +317,6 @@ struct RoundSetupFlowCoordinator: View {
     }
 }
 
-// Simple row for the list
-struct TeeRow: View {
-    let tee: GolfCourseSelectorViewModel.TeeDetails
-    let isSelected: Bool
-    
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading) {
-                Text("\(tee.teeName) - \(tee.totalYards) yards")
-                    .font(.headline)
-                
-                HStack {
-                    Text("Rating: \(String(format: "%.1f", tee.courseRating))")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                    
-                    Text("•")
-                        .foregroundColor(.gray)
-                    
-                    Text("Slope: \(tee.slopeRating)")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                }
-            }
-            
-            Spacer()
-            
-            if isSelected {
-                Image(systemName: "checkmark")
-                    .foregroundColor(AppColors.primaryNavy)
-            }
-        }
-        .padding(.vertical, 8)
-        .background(isSelected ? Color.gray.opacity(0.1) : Color.clear)
-        .cornerRadius(8)
-    }
-}
-
 struct TeeSelectionView_Previews: PreviewProvider {
     static var previews: some View {
         NavigationStack {
@@ -270,7 +327,7 @@ struct TeeSelectionView_Previews: PreviewProvider {
                     courseName: "Main Course",
                     city: "Gotham",
                     state: "NY",
-                    tees: [] // Empty tees array is valid, our view has logic to handle it
+                    tees: []
                 ),
                 tees: [],
                 onTeeSelected: { _ in 
