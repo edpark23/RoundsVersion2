@@ -6,7 +6,7 @@ struct MainView: View {
     @State private var selectedTab: Int = 0
     @State private var previousTab: Int = 0
     @State private var tabOffset: CGFloat = 0
-    @State private var showingFloatingActions = false
+
     @Namespace private var tabTransition
     
     var body: some View {
@@ -51,20 +51,7 @@ struct MainView: View {
                 modernTabBar
             }
             
-            // Floating Action Button (only show on Home tab)
-            if selectedTab == 0 {
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        floatingActionButton
-                    }
-                    .padding(.trailing, AppSpacing.large)
-                    .padding(.bottom, 100) // Above tab bar
-                }
-                .transition(.scale.combined(with: .opacity))
-                .animation(.spring(response: 0.4, dampingFraction: 0.7), value: selectedTab)
-            }
+
         }
         .background(AppColors.backgroundPrimary)
         .preferredColorScheme(.light)
@@ -98,46 +85,7 @@ struct MainView: View {
                     }
                     .shadow(color: AppColors.borderMedium.opacity(0.3), radius: 20, x: 0, y: -5)
                 
-                // Selection indicator
-                HStack {
-                    if selectedTab == 0 {
-                        selectionIndicator
-                            .matchedGeometryEffect(id: "tabSelection", in: tabTransition)
-                        Spacer()
-                        Spacer()
-                        Spacer()
-                        Spacer()
-                    } else if selectedTab == 1 {
-                        Spacer()
-                        selectionIndicator
-                            .matchedGeometryEffect(id: "tabSelection", in: tabTransition)
-                        Spacer()
-                        Spacer()
-                        Spacer()
-                    } else if selectedTab == 2 {
-                        Spacer()
-                        Spacer()
-                        selectionIndicator
-                            .matchedGeometryEffect(id: "tabSelection", in: tabTransition)
-                        Spacer()
-                        Spacer()
-                    } else if selectedTab == 3 {
-                        Spacer()
-                        Spacer()
-                        Spacer()
-                        selectionIndicator
-                            .matchedGeometryEffect(id: "tabSelection", in: tabTransition)
-                        Spacer()
-                    } else {
-                        Spacer()
-                        Spacer()
-                        Spacer()
-                        Spacer()
-                        selectionIndicator
-                            .matchedGeometryEffect(id: "tabSelection", in: tabTransition)
-                    }
-                }
-                .padding(.horizontal, AppSpacing.medium)
+
             }
         }
         .padding(.horizontal, AppSpacing.medium)
@@ -171,45 +119,9 @@ struct MainView: View {
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isSelected)
     }
     
-    private var selectionIndicator: some View {
-        Capsule()
-            .fill(AppColors.primaryBlue.opacity(0.15))
-            .frame(width: 50, height: 35)
-            .overlay {
-                Capsule()
-                    .stroke(AppColors.primaryBlue.opacity(0.3), lineWidth: 1)
-            }
-    }
+
     
-    // MARK: - Floating Action Button
-    private var floatingActionButton: some View {
-        Button(action: {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
-                showingFloatingActions.toggle()
-            }
-        }) {
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [AppColors.primaryBlue, AppColors.secondaryBlue],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 56, height: 56)
-                    .shadow(color: AppColors.primaryBlue.opacity(0.4), radius: 15, x: 0, y: 5)
-                
-                Image(systemName: showingFloatingActions ? "xmark" : "plus")
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundColor(.white)
-                    .rotationEffect(.degrees(showingFloatingActions ? 45 : 0))
-                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: showingFloatingActions)
-            }
-        }
-        .scaleEffect(showingFloatingActions ? 1.1 : 1.0)
-        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: showingFloatingActions)
-    }
+
     
     // MARK: - Helper Functions
     private func tabInfo(for index: Int) -> (String, String) {
@@ -232,7 +144,6 @@ struct MainView: View {
         
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
             selectedTab = index
-            showingFloatingActions = false
         }
     }
     

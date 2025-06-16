@@ -241,7 +241,6 @@ struct HomeView: View {
                     showingNewMatch = true 
                 }) {
                     HStack {
-                        Image(systemName: "plus.circle")
                         Text("Quick Match")
                             .fontWeight(.medium)
                     }
@@ -653,11 +652,6 @@ struct MatchCard: View {
     
     var body: some View {
         HStack(spacing: AppSpacing.medium) {
-            // Match status indicator
-            Circle()
-                .fill(AppColors.success)
-                .frame(width: 12, height: 12)
-            
             VStack(alignment: .leading, spacing: 4) {
                 Text(match.courseName)
                     .font(AppTypography.bodyMedium)
