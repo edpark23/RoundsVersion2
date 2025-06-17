@@ -18,11 +18,34 @@ class LiveMatchScoreViewModel: ObservableObject {
     init(matchId: String) {
         self.matchId = matchId
         self.currentUserId = Auth.auth().currentUser?.uid ?? ""
+        resetScores() // Reset scores for new match
         setupRealtimeScoreSync()
     }
     
     deinit {
         scoreListener?.remove()
+    }
+    
+    // MARK: - Score Reset
+    func resetScores() {
+        playerScores = Array(repeating: nil, count: 18)
+        opponentScores = Array(repeating: nil, count: 18)
+        
+        // Clear scores in Firebase for this match
+        clearFirebaseScores()
+    }
+    
+    private func clearFirebaseScores() {
+        // Clear current user's scores
+        db.collection("matches").document(matchId)
+            .collection("scores").document(currentUserId)
+            .delete { error in
+                if let error = error {
+                    print("Error clearing user scores: \(error)")
+                }
+            }
+        
+        // Note: We don't clear opponent's scores as they should manage their own
     }
     
     // MARK: - Real-time Score Syncing

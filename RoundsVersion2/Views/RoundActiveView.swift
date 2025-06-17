@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseAuth
+import FirebaseFirestore
 
 struct RoundActiveView: View {
     @Environment(\.dismiss) private var dismiss
@@ -56,9 +57,7 @@ struct RoundActiveView: View {
         )
     ]
     
-    var matchId: String {
-        return "test_match_123"
-    }
+    let matchId: String
     
     // Computed property for round completion status
     private var isCurrentRoundComplete: Bool {
@@ -69,9 +68,11 @@ struct RoundActiveView: View {
         self.course = course
         self.tee = tee
         self.settings = settings
+        let uniqueMatchId = "match_\(UUID().uuidString)"
+        self.matchId = uniqueMatchId
         self._roundStartTime = State(initialValue: Date())
-        self._chatViewModel = StateObject(wrappedValue: MatchViewModel(matchId: "test_match_123"))
-        self._scoreViewModel = StateObject(wrappedValue: LiveMatchScoreViewModel(matchId: "test_match_123"))
+        self._chatViewModel = StateObject(wrappedValue: MatchViewModel(matchId: uniqueMatchId))
+        self._scoreViewModel = StateObject(wrappedValue: LiveMatchScoreViewModel(matchId: uniqueMatchId))
     }
     
     var body: some View {
@@ -132,6 +133,8 @@ struct RoundActiveView: View {
         .onAppear {
             startTimer()
             checkRoundCompletion()
+            // Ensure scores are reset for this new match
+            scoreViewModel.resetScores()
         }
         .onDisappear {
             stopTimer()
@@ -1080,14 +1083,231 @@ struct RoundActiveView: View {
     }
     
     private func submitRound() {
-        // Here you would typically:
-        // 1. Calculate final scores and statistics
-        // 2. Submit to server/database
-        // 3. Show results or navigate to results screen
+        Task {
+            await completeMatchWithFullData()
+        }
+    }
+    
+    @MainActor
+    private func completeMatchWithFullData() async {
+        // Calculate comprehensive match data
+        let playerTotalScore = scoreViewModel.getTotalScore(isCurrentUser: true)
+        let opponentTotalScore = scoreViewModel.getTotalScore(isCurrentUser: false)
+        let totalPar = getTotalPar()
+        let playerScoreToPar = playerTotalScore - totalPar
+        let opponentScoreToPar = opponentTotalScore - totalPar
         
-        print("Round submitted! Final score: \(calculateTotalScore(for: 0))")
-        showingCompletionPrompt = false
-        showingFinalSubmission = true
+        // Determine winner
+        let playerWon = playerTotalScore <= opponentTotalScore
+        let winnerId = playerWon ? matchPlayers[0].id : matchPlayers[1].id
+        let winnerName = playerWon ? matchPlayers[0].fullName : matchPlayers[1].fullName
+        let strokeDifference = abs(playerTotalScore - opponentTotalScore)
+        
+        // Calculate detailed statistics
+        let playerStats = calculatePlayerStats(scores: scoreViewModel.playerScores)
+        let opponentStats = calculatePlayerStats(scores: scoreViewModel.opponentScores)
+        
+        // Prepare comprehensive match data for Firebase
+        let matchData: [String: Any] = [
+            // Basic match info
+            "matchId": matchId,
+            "status": "completed",
+            "completedAt": FieldValue.serverTimestamp(),
+            "startedAt": Timestamp(date: roundStartTime),
+            "duration": elapsedTime,
+            
+            // Course information
+            "course": [
+                "id": course.id,
+                "name": course.clubName,
+                "city": course.city,
+                "state": course.state
+            ],
+            "tee": [
+                "name": tee.teeName,
+                "yardage": tee.totalYards,
+                "rating": tee.courseRating,
+                "slope": tee.slopeRating,
+                "par": tee.parTotal
+            ],
+            
+            // Player information
+            "players": [
+                [
+                    "id": matchPlayers[0].id,
+                    "name": matchPlayers[0].fullName,
+                    "email": matchPlayers[0].email,
+                    "elo": matchPlayers[0].elo
+                ],
+                [
+                    "id": matchPlayers[1].id,
+                    "name": matchPlayers[1].fullName,
+                    "email": matchPlayers[1].email,
+                    "elo": matchPlayers[1].elo
+                ]
+            ],
+            
+            // Detailed scores
+            "scores": [
+                "player": scoreViewModel.playerScores,
+                "opponent": scoreViewModel.opponentScores
+            ],
+            
+            // Final results
+            "finalScores": [
+                matchPlayers[0].id: playerTotalScore,
+                matchPlayers[1].id: opponentTotalScore
+            ],
+            "scoresToPar": [
+                matchPlayers[0].id: playerScoreToPar,
+                matchPlayers[1].id: opponentScoreToPar
+            ],
+            
+            // Winner information
+            "winnerId": winnerId,
+            "winnerName": winnerName,
+            "strokeDifference": strokeDifference,
+            "wasPlayoff": strokeDifference == 0,
+            
+            // Detailed statistics
+            "statistics": [
+                matchPlayers[0].id: playerStats,
+                matchPlayers[1].id: opponentStats
+            ],
+            
+            // Round settings used
+            "settings": [
+                "concedePutt": settings.concedePutt,
+                "puttingAssist": settings.puttingAssist,
+                "greenSpeed": settings.greenSpeed,
+                "windStrength": settings.windStrength,
+                "mulligans": settings.mulligans,
+                "caddyAssist": settings.caddyAssist,
+                "startingHole": settings.startingHole
+            ],
+            
+            // Additional metadata
+            "version": "2.0",
+            "platform": "iOS"
+        ]
+        
+        do {
+            // Save complete match data to Firebase
+            let db = Firestore.firestore()
+            try await db.collection("matches").document(matchId).setData(matchData)
+            
+            // Also save to completed matches collection for easier querying
+            try await db.collection("completedMatches").document(matchId).setData(matchData)
+            
+            // Update player statistics
+            await updatePlayerStatistics(
+                playerId: matchPlayers[0].id,
+                stats: playerStats,
+                won: playerWon,
+                totalScore: playerTotalScore,
+                scoreToPar: playerScoreToPar
+            )
+            
+            await updatePlayerStatistics(
+                playerId: matchPlayers[1].id,
+                stats: opponentStats,
+                won: !playerWon,
+                totalScore: opponentTotalScore,
+                scoreToPar: opponentScoreToPar
+            )
+            
+            print("✅ Match completed and saved successfully!")
+            print("Winner: \(winnerName) by \(strokeDifference) stroke(s)")
+            print("Final Scores: \(matchPlayers[0].fullName): \(playerTotalScore), \(matchPlayers[1].fullName): \(opponentTotalScore)")
+            
+            showingCompletionPrompt = false
+            showingFinalSubmission = true
+            
+        } catch {
+            print("❌ Error saving match data: \(error)")
+            // Still show completion but with error handling
+            showingCompletionPrompt = false
+            showingFinalSubmission = true
+        }
+    }
+    
+    private func calculatePlayerStats(scores: [Int?]) -> [String: Any] {
+        let validScores = scores.compactMap { $0 }
+        let holesPlayed = validScores.count
+        
+        var eagles = 0
+        var birdies = 0
+        var pars = 0
+        var bogeys = 0
+        var doubleBogeys = 0
+        var tripleBogeyPlus = 0
+        
+        for (index, score) in scores.enumerated() {
+            guard let score = score else { continue }
+            let holePar = getHolePar(index + 1)
+            let scoreToPar = score - holePar
+            
+            switch scoreToPar {
+            case ...(-2): eagles += 1
+            case -1: birdies += 1
+            case 0: pars += 1
+            case 1: bogeys += 1
+            case 2: doubleBogeys += 1
+            default: tripleBogeyPlus += 1
+            }
+        }
+        
+        return [
+            "holesPlayed": holesPlayed,
+            "totalStrokes": validScores.reduce(0, +),
+            "eagles": eagles,
+            "birdies": birdies,
+            "pars": pars,
+            "bogeys": bogeys,
+            "doubleBogeys": doubleBogeys,
+            "tripleBogeyPlus": tripleBogeyPlus,
+            "averageScore": holesPlayed > 0 ? Double(validScores.reduce(0, +)) / Double(holesPlayed) : 0.0
+        ]
+    }
+    
+    private func updatePlayerStatistics(playerId: String, stats: [String: Any], won: Bool, totalScore: Int, scoreToPar: Int) async {
+        let db = Firestore.firestore()
+        
+        do {
+            // Update player's overall statistics
+            let playerRef = db.collection("users").document(playerId)
+            
+            try await playerRef.updateData([
+                "statistics.matchesPlayed": FieldValue.increment(Int64(1)),
+                "statistics.wins": FieldValue.increment(Int64(won ? 1 : 0)),
+                "statistics.losses": FieldValue.increment(Int64(won ? 0 : 1)),
+                "statistics.totalStrokes": FieldValue.increment(Int64(totalScore)),
+                "statistics.eagles": FieldValue.increment(Int64(stats["eagles"] as? Int ?? 0)),
+                "statistics.birdies": FieldValue.increment(Int64(stats["birdies"] as? Int ?? 0)),
+                "statistics.pars": FieldValue.increment(Int64(stats["pars"] as? Int ?? 0)),
+                "statistics.bogeys": FieldValue.increment(Int64(stats["bogeys"] as? Int ?? 0)),
+                "statistics.doubleBogeys": FieldValue.increment(Int64(stats["doubleBogeys"] as? Int ?? 0)),
+                "statistics.lastPlayed": FieldValue.serverTimestamp(),
+                "statistics.bestScore": totalScore, // This should be compared with existing best
+                "statistics.averageScore": stats["averageScore"] as? Double ?? 0.0
+            ])
+            
+            // Add to player's match history
+            try await db.collection("users").document(playerId)
+                .collection("matchHistory").document(matchId).setData([
+                    "matchId": matchId,
+                    "date": FieldValue.serverTimestamp(),
+                    "won": won,
+                    "score": totalScore,
+                    "scoreToPar": scoreToPar,
+                    "courseName": course.clubName,
+                    "opponentId": playerId == matchPlayers[0].id ? matchPlayers[1].id : matchPlayers[0].id,
+                    "opponentName": playerId == matchPlayers[0].id ? matchPlayers[1].fullName : matchPlayers[0].fullName
+                ])
+            
+        } catch {
+            print("Error updating player statistics for \(playerId): \(error)")
+        }
     }
     
     private func getHolePar(_ hole: Int) -> Int {

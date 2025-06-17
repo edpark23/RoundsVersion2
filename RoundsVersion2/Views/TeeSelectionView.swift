@@ -101,7 +101,7 @@ struct TeeSelectionView: View {
                 Spacer()
                 
                 Button(action: {
-                    if let selectedTee = selectedTee {
+                    if selectedTee != nil {
                         showingRoundSetup = true
                     }
                 }) {
