@@ -210,11 +210,12 @@ struct GolfCourseSelectorView: View {
                                 .disabled(viewModel.isLoading)
                                 .padding(.horizontal, 16)
                                 .padding(.top, 8)
+                                .padding(.bottom, 16) // Additional padding to prevent overlap
                             }
                         }
                     }
                     .padding(.top, 16)
-                    .padding(.bottom, 90) // Space for the continue button
+                    .padding(.bottom, viewModel.hasMoreCourses ? 140 : 90) // Extra space when Load More button is present
                 }
                 
                 Spacer()
