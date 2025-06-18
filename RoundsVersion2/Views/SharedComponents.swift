@@ -335,10 +335,10 @@ struct UniformHeader: View {
             Color(red: 0.0, green: 75/255, blue: 143/255).ignoresSafeArea(edges: .top)
             
             VStack(spacing: 0) {
-                // Status bar space - increased for better positioning
-                Color.clear.frame(height: 50)
+                // Status bar space - adjusted to match other views
+                Color.clear.frame(height: 44)
                 
-                // Navigation bar
+                // Navigation bar with proper vertical centering
                 HStack {
                     Button(action: onBackTapped) {
                         Image(systemName: "chevron.left")
@@ -369,9 +369,10 @@ struct UniformHeader: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 16)
+                .padding(.vertical, 16)
+                .frame(height: 56) // Fixed height for navigation area
             }
         }
-        .frame(height: 106)
+        .frame(height: 100) // Reduced total height to match other views
     }
 } 
