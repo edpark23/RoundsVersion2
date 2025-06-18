@@ -64,46 +64,12 @@ struct GolfCourseSelectorView: View {
             Color(red: 0.95, green: 0.95, blue: 0.97).ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Navy blue header
-                ZStack {
-                    Color(red: 0.0, green: 75/255, blue: 143/255).ignoresSafeArea(edges: .top)
-                    
-                    VStack(spacing: 0) {
-                        // Status bar space
-                        Color.clear.frame(height: 44)
-                        
-                        // Navigation bar
-                        HStack {
-                            Button(action: {
-                                dismiss()
-                            }) {
-                                Image(systemName: "chevron.left")
-                                    .foregroundColor(.white)
-                                    .font(.system(size: 20, weight: .semibold))
-                            }
-                            
-                            Spacer()
-                            
-                            Text("SELECT COURSE")
-                                .foregroundColor(.white)
-                                .font(.system(size: 20, weight: .bold))
-                                .tracking(0.5)
-                            
-                            Spacer()
-                            
-                            Button(action: {
-                                // Profile action
-                            }) {
-                                Image(systemName: "person.crop.circle")
-                                    .foregroundColor(.white)
-                                    .font(.system(size: 20))
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 10)
-                    }
-                }
-                .frame(height: 90)
+                // Uniform header
+                UniformHeader(
+                    title: "SELECT COURSE",
+                    onBackTapped: { dismiss() },
+                    onMenuTapped: { /* Profile action */ }
+                )
                 
                 // Search bar
                 HStack(spacing: 8) {

@@ -316,4 +316,62 @@ struct RoundedCorner: Shape {
         let path = UIBezierPath(roundedRect: rect, byRoundingCorners: corners, cornerRadii: CGSize(width: radius, height: radius))
         return Path(path.cgPath)
     }
+}
+
+// MARK: - Reusable Header Component
+struct UniformHeader: View {
+    let title: String
+    let onBackTapped: () -> Void
+    let onMenuTapped: (() -> Void)?
+    
+    init(title: String, onBackTapped: @escaping () -> Void, onMenuTapped: (() -> Void)? = nil) {
+        self.title = title
+        self.onBackTapped = onBackTapped
+        self.onMenuTapped = onMenuTapped
+    }
+    
+    var body: some View {
+        ZStack {
+            Color(red: 0.0, green: 75/255, blue: 143/255).ignoresSafeArea(edges: .top)
+            
+            VStack(spacing: 0) {
+                // Status bar space
+                Color.clear.frame(height: 44)
+                
+                // Navigation bar
+                HStack {
+                    Button(action: onBackTapped) {
+                        Image(systemName: "chevron.left")
+                            .foregroundColor(.white)
+                            .font(.system(size: 20, weight: .semibold))
+                    }
+                    
+                    Spacer()
+                    
+                    Text(title)
+                        .foregroundColor(.white)
+                        .font(.system(size: 20, weight: .bold))
+                        .tracking(0.5)
+                    
+                    Spacer()
+                    
+                    if let onMenuTapped = onMenuTapped {
+                        Button(action: onMenuTapped) {
+                            Image(systemName: "line.3.horizontal")
+                                .foregroundColor(.white)
+                                .font(.system(size: 20))
+                        }
+                    } else {
+                        // Invisible spacer to keep text centered
+                        Image(systemName: "line.3.horizontal")
+                            .foregroundColor(.clear)
+                            .font(.system(size: 20))
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 10)
+            }
+        }
+        .frame(height: 90)
+    }
 } 

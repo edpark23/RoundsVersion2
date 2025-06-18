@@ -113,37 +113,12 @@ struct MatchmakingView: View {
     // Match found view - refined to match PNG more closely
     private var matchFoundView: some View {
         VStack(spacing: 0) {
-            // Header - restored full design without problematic ignoresSafeArea
-            VStack {
-                HStack {
-                    Button(action: {
-                        dismiss()
-                    }) {
-                        Image(systemName: "arrow.left")
-                            .foregroundColor(.white)
-                            .font(.title2)
-                    }
-                    .padding(.leading, 16)
-                    
-                    Spacer()
-                    
-                    Text("ROUNDS")
-                        .font(.system(size: 28, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .multilineTextAlignment(.center)
-                    
-                    Spacer()
-                    
-                    Image(systemName: "line.3.horizontal")
-                        .foregroundColor(.white)
-                        .font(.title2)
-                        .padding(.trailing, 16)
-                }
-                .frame(height: 100)
-            }
-            .frame(maxWidth: .infinity)
-            .background(Color(red: 0/255, green: 75/255, blue: 143/255))
+            // Uniform header
+            UniformHeader(
+                title: "ROUNDS",
+                onBackTapped: { dismiss() },
+                onMenuTapped: { /* Menu action */ }
+            )
 
             // Competitive Lobby
             VStack(alignment: .leading, spacing: 0) {
