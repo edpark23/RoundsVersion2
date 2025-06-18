@@ -48,42 +48,10 @@ struct MatchHistoryView: View {
     
     // MARK: - Header
     private var headerView: some View {
-        VStack(spacing: 0) {
-            // Status bar spacer
-            Rectangle()
-                .fill(AppColors.primaryBlue)
-                .frame(height: UIApplication.shared.windows.first?.safeAreaInsets.top ?? 0)
-                .ignoresSafeArea(.all, edges: .top)
-            
-            // Header content
-            HStack {
-                Button(action: {
-                    // Navigate back
-                }) {
-                    Image(systemName: "chevron.left")
-                        .font(.title2)
-                        .fontWeight(.medium)
-                        .foregroundColor(.white)
-                }
-                
-                Spacer()
-                
-                Text("MATCH HISTORY")
-                    .font(AppTypography.titleLarge)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                
-                Spacer()
-                
-                // Placeholder for symmetry
-                Image(systemName: "chevron.left")
-                    .font(.title2)
-                    .opacity(0)
-            }
-            .padding(.horizontal, AppSpacing.large)
-            .padding(.vertical, AppSpacing.medium)
-            .background(AppColors.primaryBlue)
-        }
+        UniformHeader(
+            title: "MATCH HISTORY",
+            onBackTapped: { /* Navigate back */ }
+        )
     }
     
     // MARK: - Tab Selector
