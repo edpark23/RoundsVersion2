@@ -335,8 +335,8 @@ struct UniformHeader: View {
             Color(red: 0.0, green: 75/255, blue: 143/255).ignoresSafeArea(edges: .top)
             
             VStack(spacing: 0) {
-                // Status bar space
-                Color.clear.frame(height: 44)
+                // Status bar space - increased for better positioning
+                Color.clear.frame(height: 50)
                 
                 // Navigation bar
                 HStack {
@@ -369,9 +369,9 @@ struct UniformHeader: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 10)
+                .padding(.bottom, 16)
             }
         }
-        .frame(height: 90)
+        .frame(height: 106)
     }
 } 
