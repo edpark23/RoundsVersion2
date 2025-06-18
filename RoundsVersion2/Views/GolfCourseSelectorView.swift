@@ -221,30 +221,51 @@ struct GolfCourseSelectorView: View {
                 Spacer()
             }
             
-            // Continue button fixed at bottom
+            // Continue button fixed at bottom - always in front
             VStack {
                 Spacer()
                 
-                Button(action: {
-                    if selectedCourse != nil {
-                        showingTeeSelection = true
-                    }
-                }) {
-                    Text("CONTINUE")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 50)
-                        .background(
-                            Capsule()
-                                .fill(Color(red: 0.0, green: 75/255, blue: 143/255))
-                        )
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 20)
+                // Background overlay to ensure button stands out
+                VStack(spacing: 0) {
+                    // Gradient fade from transparent to background color
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color(red: 0.95, green: 0.95, blue: 0.97).opacity(0),
+                            Color(red: 0.95, green: 0.95, blue: 0.97).opacity(0.8),
+                            Color(red: 0.95, green: 0.95, blue: 0.97)
+                        ]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: 30)
+                    
+                    // Solid background for button area
+                    Color(red: 0.95, green: 0.95, blue: 0.97)
+                        .frame(height: 90)
                 }
-                .disabled(selectedCourse == nil)
-                .opacity(selectedCourse == nil ? 0.7 : 1.0)
+                .overlay(
+                    Button(action: {
+                        if selectedCourse != nil {
+                            showingTeeSelection = true
+                        }
+                    }) {
+                        Text("CONTINUE")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                            .background(
+                                Capsule()
+                                    .fill(Color(red: 0.0, green: 75/255, blue: 143/255))
+                            )
+                            .padding(.horizontal, 16)
+                    }
+                    .disabled(selectedCourse == nil)
+                    .opacity(selectedCourse == nil ? 0.7 : 1.0),
+                    alignment: .center
+                )
             }
+            .zIndex(1000) // Ensure this is always on top
         }
         .navigationBarHidden(true)
         .navigationDestination(isPresented: $showingTeeSelection) {
