@@ -21,7 +21,7 @@ struct HomeView: View {
                     .ignoresSafeArea()
                 
                 ScrollView {
-                    LazyVStack(spacing: AppSpacing.large) {
+                    LazyVStack(spacing: AppSpacing.medium) {
                         // Modern header with welcome message
                         modernHeaderView
                         
@@ -44,7 +44,7 @@ struct HomeView: View {
                         recentAchievementsView
                     }
                     .padding(.horizontal, AppSpacing.medium)
-                    .padding(.top, AppSpacing.small)
+                    .padding(.top, 4)
                 }
                 .refreshable {
                     await refreshData()
@@ -236,39 +236,7 @@ struct HomeView: View {
                 print("Long press detected - quick start with last settings")
             }
             
-            HStack(spacing: AppSpacing.medium) {
-                Button(action: { 
-                    showingNewMatch = true 
-                }) {
-                    HStack {
-                        Text("Quick Match")
-                            .fontWeight(.medium)
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                .secondaryButton()
-                .interactiveButton()
-                .hapticFeedback(style: .light)
-                
-                Button(action: { 
-                    // Practice mode
-                    print("Practice mode selected")
-                }) {
-                    HStack {
-                        Image(systemName: "target")
-                        Text("Practice")
-                            .fontWeight(.medium)
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                .tertiaryButton()
-                .interactiveButton()
-                .hapticFeedback(style: .light)
-                .longPressGesture(duration: 0.5) {
-                    // Advanced practice options
-                    print("Long press practice - advanced options")
-                }
-            }
+
         }
     }
     
