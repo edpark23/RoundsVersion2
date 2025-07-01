@@ -195,45 +195,11 @@ struct RoundActiveView: View {
     
     // MARK: - Modern Header
     private var modernHeader: some View {
-        ZStack {
-            Color(red: 0.0, green: 75/255, blue: 143/255).ignoresSafeArea(edges: .top)
-            
-            VStack(spacing: 0) {
-                // Status bar space
-                Color.clear.frame(height: 44)
-                
-                // Navigation bar
-                HStack {
-                    Button(action: {
-                        dismiss()
-                    }) {
-                        Image(systemName: "chevron.left")
-                            .foregroundColor(.white)
-                            .font(.system(size: 20, weight: .semibold))
-                    }
-                    
-                    Spacer()
-                    
-                    Text("LIVE MATCH")
-                        .foregroundColor(.white)
-                        .font(.system(size: 20, weight: .bold))
-                        .tracking(0.5)
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        // Quick stats or settings
-                    }) {
-                        Image(systemName: "line.horizontal.3")
-                            .foregroundColor(.white)
-                            .font(.system(size: 20))
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 10)
-            }
-        }
-        .frame(height: 90)
+        UniformHeader(
+            title: "LIVE MATCH",
+            onBackTapped: { dismiss() },
+            onMenuTapped: { /* Quick stats or settings */ }
+        )
     }
     
     // MARK: - Live Progress Banner

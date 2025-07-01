@@ -6,7 +6,12 @@ struct HomeView: View {
     @EnvironmentObject private var mainViewModel: MainViewModel
     @State private var showingNewMatch = false
     @State private var showingMatchmaking = false
+    @State private var selectedTab: Tab = .solo
     @State private var animateStats = false
+    
+    enum Tab {
+        case solo, duos
+    }
     
     var body: some View {
         NavigationView {
@@ -22,6 +27,9 @@ struct HomeView: View {
                         
                         // Quick stats dashboard
                         quickStatsView
+                        
+                        // Game mode selector (improved)
+                        modernGameModeSelector
                         
                         // Action buttons section (moved up for better UX)
                         actionButtonsSection
@@ -155,7 +163,34 @@ struct HomeView: View {
         }
     }
     
-
+    // MARK: - Modern Game Mode Selector
+    private var modernGameModeSelector: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.small) {
+            Text("Game Mode")
+                .font(AppTypography.titleMedium)
+                .foregroundColor(AppColors.textPrimary)
+                .fontWeight(.semibold)
+            
+            HStack(spacing: AppSpacing.small) {
+                GameModeButton(
+                    title: "Solo",
+                    icon: "person.fill",
+                    isSelected: selectedTab == .solo,
+                    action: { selectedTab = .solo }
+                )
+                
+                GameModeButton(
+                    title: "Duos",
+                    icon: "person.2.fill",
+                    isSelected: selectedTab == .duos,
+                    action: { selectedTab = .duos }
+                )
+            }
+        }
+        .padding(AppSpacing.medium)
+        .background(AppColors.surfacePrimary)
+        .modernCard()
+    }
     
     // MARK: - Action Buttons Section
     private var actionButtonsSection: some View {
@@ -199,6 +234,41 @@ struct HomeView: View {
             .longPressGesture(duration: 0.3) {
                 // Quick start with last settings
                 print("Long press detected - quick start with last settings")
+            }
+            
+            HStack(spacing: AppSpacing.medium) {
+                Button(action: { 
+                    showingNewMatch = true 
+                }) {
+                    HStack {
+                        Image(systemName: "plus.circle")
+                        Text("Quick Match")
+                            .fontWeight(.medium)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .secondaryButton()
+                .interactiveButton()
+                .hapticFeedback(style: .light)
+                
+                Button(action: { 
+                    // Practice mode
+                    print("Practice mode selected")
+                }) {
+                    HStack {
+                        Image(systemName: "target")
+                        Text("Practice")
+                            .fontWeight(.medium)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .tertiaryButton()
+                .interactiveButton()
+                .hapticFeedback(style: .light)
+                .longPressGesture(duration: 0.5) {
+                    // Advanced practice options
+                    print("Long press practice - advanced options")
+                }
             }
         }
     }

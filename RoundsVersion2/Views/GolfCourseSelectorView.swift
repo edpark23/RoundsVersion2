@@ -233,71 +233,50 @@ struct GolfCourseSelectorView: View {
                                                 .tint(.white)
                                         }
                                         Text(viewModel.isLoading ? "Loading..." : "Load More Courses")
-                                            .font(.system(size: 14, weight: .medium))
+                                            .font(.system(size: 16, weight: .medium))
                                             .foregroundColor(.white)
                                     }
                                     .frame(maxWidth: .infinity)
-                                    .frame(height: 36)
-                                    .background(Color(red: 0.0, green: 75/255, blue: 143/255).opacity(0.7))
-                                    .cornerRadius(18)
+                                    .frame(height: 44)
+                                    .background(Color(red: 0.0, green: 75/255, blue: 143/255))
+                                    .cornerRadius(22)
                                 }
                                 .disabled(viewModel.isLoading)
-                                .padding(.horizontal, 32)
-                                .padding(.top, 16)
-                                .padding(.bottom, 20)
+                                .padding(.horizontal, 16)
+                                .padding(.top, 8)
                             }
                         }
                     }
                     .padding(.top, 16)
-                    .padding(.bottom, 120) // Increased space for the continue button
+                    .padding(.bottom, 90) // Space for the continue button
                 }
                 
                 Spacer()
             }
             
-            // Continue button fixed at bottom with enhanced visibility
+            // Continue button fixed at bottom
             VStack {
                 Spacer()
                 
-                // Background overlay to ensure button visibility
-                VStack(spacing: 0) {
-                    // Gradient fade overlay
-                    LinearGradient(
-                        colors: [Color.clear, Color(red: 0.95, green: 0.95, blue: 0.97).opacity(0.8), Color(red: 0.95, green: 0.95, blue: 0.97)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .frame(height: 30)
-                    
-                    // Solid background for button area
-                    Color(red: 0.95, green: 0.95, blue: 0.97)
-                        .frame(height: 80)
-                }
-                .overlay(
-                    // Continue button
-                    Button(action: {
-                        if selectedCourse != nil {
-                            showingTeeSelection = true
-                        }
-                    }) {
-                        Text("CONTINUE")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 56)
-                            .background(
-                                Capsule()
-                                    .fill(Color(red: 0.0, green: 75/255, blue: 143/255))
-                                    .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
-                            )
-                            .padding(.horizontal, 16)
+                Button(action: {
+                    if selectedCourse != nil {
+                        showingTeeSelection = true
                     }
-                    .disabled(selectedCourse == nil)
-                    .opacity(selectedCourse == nil ? 0.7 : 1.0)
-                    .scaleEffect(selectedCourse != nil ? 1.0 : 0.95)
-                    .animation(.easeInOut(duration: 0.2), value: selectedCourse != nil)
-                    .padding(.bottom, 20)
-                )
+                }) {
+                    Text("CONTINUE")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(
+                            Capsule()
+                                .fill(Color(red: 0.0, green: 75/255, blue: 143/255))
+                        )
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 20)
+                }
+                .disabled(selectedCourse == nil)
+                .opacity(selectedCourse == nil ? 0.7 : 1.0)
             }
         }
         .navigationBarHidden(true)
