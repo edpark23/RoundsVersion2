@@ -308,27 +308,27 @@ struct GolfCourseSelectorView: View {
         .onAppear {
             print("🎯 GolfCourseSelectorView appeared. Courses count: \(viewModel.courses.count), isLoading: \(viewModel.isLoading), hasAttemptedLoad: \(hasAttemptedInitialLoad)")
             
-            // Backup: If courses still aren't loaded when view appears, trigger loading
-            if viewModel.courses.isEmpty && !viewModel.isLoading {
-                print("🎯 GolfCourseSelectorView: Backup loading triggered on appear")
-                Task {
-                    await viewModel.ensureCoursesLoaded()
-                }
+            // Always try to ensure courses are loaded when view appears
+            Task {
+                await viewModel.ensureCoursesLoaded()
             }
         }
         .task {
-            // Ensure courses are loaded immediately when user navigates to this screen
-            if !hasAttemptedInitialLoad {
-                print("🎯 GolfCourseSelectorView: Checking if manual load needed...")
-                hasAttemptedInitialLoad = true
-                
-                // Use the new ensureCoursesLoaded function for immediate loading
+            print("🎯 GolfCourseSelectorView .task triggered")
+            
+            // Always ensure courses are loaded in task block too
+            await viewModel.ensureCoursesLoaded()
+            
+            // Fallback: If still no courses after immediate attempt, wait a bit and try again
+            if viewModel.courses.isEmpty && !viewModel.isLoading {
+                print("🎯 GolfCourseSelectorView: No courses after immediate load, trying fallback")
+                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1s delay
                 await viewModel.ensureCoursesLoaded()
-                
-                print("🎯 GolfCourseSelectorView: Initial setup completed")
-            } else {
-                print("🎯 GolfCourseSelectorView: Initial load already attempted, skipping")
             }
+            
+            // Mark that we've attempted loading (but don't use this to prevent future loading)
+            hasAttemptedInitialLoad = true
+            print("🎯 GolfCourseSelectorView: Task completed")
         }
         .alert("Error Loading Courses", isPresented: .constant(viewModel.error != nil)) {
             Button("OK") {

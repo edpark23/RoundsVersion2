@@ -14,20 +14,11 @@ class GolfCourseSelectorViewModel: ObservableObject {
     private let pageSize = 5 // Smaller batch size to prevent message too large errors
     private var lastDocument: DocumentSnapshot?
     private var authStateListener: AuthStateDidChangeListenerHandle?
-    private var isAppStartup = true // Track if this is during app startup
     
     init() {
         // Initialize with clean state
         print("🏌️ GolfCourseSelectorViewModel initialized")
         setupAuthListener()
-        
-        // Mark as no longer startup after a brief delay
-        Task {
-            try? await Task.sleep(nanoseconds: 3_000_000_000) // 3s
-            await MainActor.run {
-                isAppStartup = false
-            }
-        }
     }
     
     deinit {
@@ -42,15 +33,9 @@ class GolfCourseSelectorViewModel: ObservableObject {
                 if user != nil {
                     print("🔐 Auth state changed - user authenticated")
                     
-                    // Only delay during app startup to prevent Firebase cascade
-                    if self?.isAppStartup == true {
-                        print("📱 App startup detected - delaying course loading")
-                        try? await Task.sleep(nanoseconds: 2_000_000_000) // 2s delay only during startup
-                    }
-                    
-                    // Load courses if we don't have any and aren't already loading
+                    // Load courses immediately if we don't have any and aren't already loading
                     if self?.courses.isEmpty == true && self?.isLoading == false {
-                        print("🏌️ Loading courses")
+                        print("🏌️ Auto-loading courses from auth listener")
                         await self?.loadCourses()
                     }
                 } else {
@@ -112,6 +97,10 @@ class GolfCourseSelectorViewModel: ObservableObject {
             return 
         }
         
+        print("🏌️ Starting to load courses from Firebase...")
+        print("🔐 Auth current user: \(Auth.auth().currentUser?.uid ?? "nil")")
+        print("🔐 Auth state: \(Auth.auth().currentUser != nil ? "authenticated" : "not authenticated")")
+        
         // Check if user is authenticated
         guard Auth.auth().currentUser != nil else {
             print("❌ User not authenticated, cannot load courses")
@@ -119,8 +108,6 @@ class GolfCourseSelectorViewModel: ObservableObject {
             return
         }
         
-        print("🏌️ Starting to load courses from Firebase...")
-        print("🔐 User authenticated: \(Auth.auth().currentUser?.uid ?? "unknown")")
         isLoading = true
         error = nil
         
@@ -154,6 +141,8 @@ class GolfCourseSelectorViewModel: ObservableObject {
             if !snapshot.documents.isEmpty {
                 let documentIds = snapshot.documents.prefix(3).map { $0.documentID }
                 print("📋 First few document IDs: \(documentIds)")
+            } else {
+                print("⚠️ No documents returned from Firebase query")
             }
             
             let newCourses = snapshot.documents.compactMap { (document: QueryDocumentSnapshot) -> GolfCourseDetails? in
@@ -193,17 +182,25 @@ class GolfCourseSelectorViewModel: ObservableObject {
             // If no courses were found and this is the first load, provide helpful message
             if courses.isEmpty && lastDocument == nil {
                 print("⚠️ No courses found in Firebase. Database might be empty.")
-                error = "No golf courses found. Please check if course data has been imported."
+                error = "No golf courses found. Please ensure course data has been imported to Firebase."
             }
             
         } catch {
             self.error = "Failed to load courses: \(error.localizedDescription)"
             print("❌ Error loading courses: \(error)")
             print("🔍 Error details: \(error)")
+            
+            // Additional error context
+            if error.localizedDescription.contains("network") {
+                print("🌐 Network error detected - check internet connection")
+            }
+            if error.localizedDescription.contains("permission") {
+                print("🔒 Permission error detected - check Firebase rules")
+            }
         }
         
         isLoading = false
-        print("🏁 Course loading completed. Final count: \(courses.count)")
+        print("🏁 Course loading completed. Final count: \(courses.count), Error: \(error ?? "none")")
     }
     
     // New method to load full course details when needed
@@ -394,11 +391,30 @@ class GolfCourseSelectorViewModel: ObservableObject {
         // For demo purposes, we'll just log the details
     }
     
-    // Manual load function for immediate loading when user navigates to screen
+    // Immediate load function for when user navigates to screen
     func ensureCoursesLoaded() async {
-        guard courses.isEmpty && !isLoading else { return }
+        // More aggressive loading - try even if we have some courses but loading failed before
+        guard !isLoading else { 
+            print("🏌️ Already loading courses, skipping ensureCoursesLoaded")
+            return 
+        }
         
-        print("🏌️ Manual course loading triggered")
-        await loadCourses()
+        print("🏌️ ensureCoursesLoaded triggered - courses count: \(courses.count)")
+        
+        // If we have no courses, definitely load
+        if courses.isEmpty {
+            print("🏌️ No courses found, triggering immediate load")
+            await loadCourses()
+            return
+        }
+        
+        // If we have an error but no courses, try loading again
+        if error != nil && courses.isEmpty {
+            print("🏌️ Error state with no courses, retrying load")
+            await loadCourses()
+            return
+        }
+        
+        print("🏌️ Courses already loaded (\(courses.count) courses), skipping load")
     }
 } 
