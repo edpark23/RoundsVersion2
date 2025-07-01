@@ -66,8 +66,8 @@ class HomeViewModel: ObservableObject {
         // Defer Firebase operations to prevent initialization cascade
         Task {
             try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5s delay
-            await fetchRecentMatches()
-            await loadPlayerProfile()
+            fetchRecentMatches()
+            loadPlayerProfile()
         }
     }
     

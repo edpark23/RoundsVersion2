@@ -185,8 +185,8 @@ struct HomeView: View {
         // Defer Firebase operations to prevent initialization cascade
         Task {
             try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5s delay
-            await viewModel.fetchRecentMatches()
-            await viewModel.loadPlayerProfile()
+            viewModel.fetchRecentMatches()
+            viewModel.loadPlayerProfile()
         }
     }
 }

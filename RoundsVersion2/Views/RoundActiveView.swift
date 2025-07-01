@@ -1249,7 +1249,7 @@ struct RoundActiveView: View {
                 "statistics.doubleBogeys": FieldValue.increment(Int64(stats["doubleBogeys"] as? Int ?? 0)),
                 "statistics.lastPlayed": FieldValue.serverTimestamp(),
                 "statistics.bestScore": totalScore, // This should be compared with existing best
-                "statistics.averageScore": stats["averageScore"] as? Double ?? 0.0 as Double
+                "statistics.averageScore": stats["averageScore"] as? Double ?? 0.0
             ])
             
             // Add to player's match history
