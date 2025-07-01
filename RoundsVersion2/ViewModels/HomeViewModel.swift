@@ -63,8 +63,12 @@ class HomeViewModel: ObservableObject {
     private let db = Firestore.firestore()
     
     init() {
-        fetchRecentMatches()
-        loadPlayerProfile()
+        // Defer Firebase operations to prevent initialization cascade
+        Task {
+            try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5s delay
+            await fetchRecentMatches()
+            await loadPlayerProfile()
+        }
     }
     
     func fetchRecentMatches() {

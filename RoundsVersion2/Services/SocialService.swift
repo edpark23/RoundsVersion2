@@ -16,8 +16,18 @@ class SocialService: ObservableObject, @unchecked Sendable {
     @Published var error: String?
     
     init() {
-        setupFriendsListener()
-        setupChatRoomsListener()
+        // Defer listener setup to prevent Firebase cascade
+        Task {
+            try? await Task.sleep(nanoseconds: 2_500_000_000) // 2.5s delay
+            await setupListenersDelayed()
+        }
+    }
+    
+    private func setupListenersDelayed() async {
+        await MainActor.run {
+            setupFriendsListener()
+            setupChatRoomsListener()
+        }
     }
     
     deinit {

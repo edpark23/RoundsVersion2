@@ -31,9 +31,13 @@ class GolfCourseSelectorViewModel: ObservableObject {
         authStateListener = Auth.auth().addStateDidChangeListener { [weak self] _, user in
             Task { @MainActor in
                 if user != nil {
-                    print("🔐 Auth state changed - user authenticated, auto-loading courses")
-                    // Only load if we don't have courses already
+                    print("🔐 Auth state changed - user authenticated, scheduling delayed course loading")
+                    // Delay auto-loading to prevent Firebase cascade
+                    try? await Task.sleep(nanoseconds: 2_000_000_000) // 2s delay
+                    
+                    // Only load if we don't have courses already and view is still active
                     if self?.courses.isEmpty == true && self?.isLoading == false {
+                        print("🏌️ Starting delayed course loading")
                         await self?.loadCourses()
                     }
                 } else {

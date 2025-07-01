@@ -19,7 +19,14 @@ class LiveMatchScoreViewModel: ObservableObject {
         self.matchId = matchId
         self.currentUserId = Auth.auth().currentUser?.uid ?? ""
         resetScores() // Reset scores for new match
-        setupRealtimeScoreSync()
+        
+        // Defer real-time sync to prevent Firebase cascade
+        Task {
+            try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5s delay
+            await MainActor.run {
+                setupRealtimeScoreSync()
+            }
+        }
     }
     
     deinit {
@@ -31,19 +38,22 @@ class LiveMatchScoreViewModel: ObservableObject {
         playerScores = Array(repeating: nil, count: 18)
         opponentScores = Array(repeating: nil, count: 18)
         
-        // Clear scores in Firebase for this match
-        clearFirebaseScores()
+        // Defer Firebase clearing to prevent cascade during initialization
+        Task {
+            try? await Task.sleep(nanoseconds: 2_000_000_000) // 2s delay
+            await clearFirebaseScores()
+        }
     }
     
-    private func clearFirebaseScores() {
+    private func clearFirebaseScores() async {
         // Clear current user's scores
-        db.collection("matches").document(matchId)
-            .collection("scores").document(currentUserId)
-            .delete { error in
-                if let error = error {
-                    print("Error clearing user scores: \(error)")
-                }
-            }
+        do {
+            try await db.collection("matches").document(matchId)
+                .collection("scores").document(currentUserId)
+                .delete()
+        } catch {
+            print("Error clearing user scores: \(error)")
+        }
         
         // Note: We don't clear opponent's scores as they should manage their own
     }

@@ -71,21 +71,27 @@ struct RoundsVersion2App: App {
                 // Show splash immediately
                 showSplash = true
                 
-                // Initialize app on a background thread
+                // Initialize app with staggered initialization to prevent Firebase cascade
                 Task(priority: .high) {
-                    // Initialize user state
+                    // Step 1: Wait for auth to stabilize first
+                    try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
+                    
+                    // Step 2: Initialize user state
                     await MainActor.run {
                         _ = mainViewModel.currentUser
                         isInitializing = false
                     }
                     
-                    // Phase 6: Initialize Modular Architecture
-                    await initializePhase6()
+                    // Step 3: Wait before initializing other services
+                    try? await Task.sleep(nanoseconds: 1_000_000_000) // 1s
                     
-                    // Keep splash screen visible for at least 1.8 seconds
-                    try? await Task.sleep(nanoseconds: 1_800_000_000)
+                    // Step 4: Phase 6 initialization (staggered)
+                    await initializePhase6Staggered()
                     
-                    // Hide splash with animation
+                    // Step 5: Keep splash screen visible for minimum time
+                    try? await Task.sleep(nanoseconds: 800_000_000) // 0.8s additional
+                    
+                    // Step 6: Hide splash with animation
                     await MainActor.run {
                         withAnimation(.easeOut(duration: 0.5)) {
                             showSplash = false
@@ -93,9 +99,9 @@ struct RoundsVersion2App: App {
                     }
                 }
                 
-                // Defer permission requests
+                // Defer permission requests even further
                 DispatchQueue.global(qos: .utility).async {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
                         PermissionsManager.requestPhotoAndCameraPermissions { granted in
                             if granted {
                                 print("Photo and camera permissions granted")
@@ -109,26 +115,28 @@ struct RoundsVersion2App: App {
         }
     }
     
-    // MARK: - Phase 6 Initialization
-    private func initializePhase6() async {
-        // Initialize Modular Architecture
+    // MARK: - Staggered Phase 6 Initialization
+    private func initializePhase6Staggered() async {
+        // Initialize Modular Architecture first
         if FeatureFlags.useModularArchitecture {
             await initializeModularArchitecture()
+            try? await Task.sleep(nanoseconds: 300_000_000) // 0.3s delay
         }
         
-        // Initialize Performance Dashboard
+        // Initialize Performance Dashboard second
         if FeatureFlags.usePerformanceDashboard {
             await MainActor.run {
                 PerformanceDashboard.shared.startMonitoring()
             }
+            try? await Task.sleep(nanoseconds: 300_000_000) // 0.3s delay
         }
         
-        // Initialize Plugin System
+        // Initialize Plugin System last
         if FeatureFlags.enablePluginSystem {
             await initializePluginSystem()
         }
         
-        print("✅ Phase 6: Modular Architecture & Scalability initialized")
+        print("✅ Phase 6: Modular Architecture & Scalability initialized (staggered)")
     }
     
     private func initializeModularArchitecture() async {

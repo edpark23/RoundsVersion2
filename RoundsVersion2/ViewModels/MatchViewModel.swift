@@ -17,10 +17,14 @@ class MatchViewModel: ObservableObject {
     init(matchId: String) {
         self.matchId = matchId
         
+        // Defer Firebase operations to prevent initialization cascade
         Task {
+            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1s delay
             await loadCurrentUser()
             await loadMatchStatus()
-            listenToMessages()
+            await MainActor.run {
+                listenToMessages()
+            }
         }
     }
     
