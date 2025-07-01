@@ -28,72 +28,54 @@ struct LiveMatchView: View {
     var body: some View {
         ZStack {
             // Main background
-            Color(red: 0.95, green: 0.95, blue: 0.97).ignoresSafeArea()
+            AppColors.backgroundPrimary.ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Navy blue header - EXACT copy from working GolfCourseSelectorView
-                ZStack {
-                    Color(red: 0.0, green: 75/255, blue: 143/255).ignoresSafeArea(edges: .top)
-                    
-                    VStack(spacing: 0) {
-                        // Status bar space
-                        Color.clear.frame(height: 44)
-                        
-                        // Navigation bar
-                        HStack {
-                            Button(action: {
-                                dismiss()
-                            }) {
-                                Image(systemName: "chevron.left")
-                                    .foregroundColor(.white)
-                                    .font(.system(size: 20, weight: .semibold))
-                            }
-                            
-                            Spacer()
-                            
-                            Text("LIVE MATCH")
-                                .foregroundColor(.white)
-                                .font(.system(size: 20, weight: .bold))
-                                .tracking(0.5)
-                            
-                            Spacer()
-                            
-                            Button(action: {
-                                // Menu action
-                            }) {
-                                Image(systemName: "line.horizontal.3")
-                                    .foregroundColor(.white)
-                                    .font(.system(size: 20))
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 10)
-                    }
-                }
-                .frame(height: 90)
+                // Use the modern header instead of basic one
+                modernHeader
                 
                 // Main content
                 ScrollView {
-                    VStack(spacing: 16) {
-                        // Course info
-                        Text(course.clubName)
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .padding()
+                    LazyVStack(spacing: AppSpacing.medium) {
+                        // Live scorecard showing player vs opponent
+                        liveScorecard
                         
-                        // Placeholder content for now
-                        Text("Live Match Content - Phase 4")
-                            .font(.body)
-                            .foregroundColor(.secondary)
+                        // Current hole card with navigation
+                        currentHoleCard
+                        
+                        // Action buttons (use existing modernActionButtons)
+                        modernActionButtons
+                        
+                        // Course info card
+                        courseInfoCard
+                        
+                        // Bottom padding for safe area
+                        Color.clear.frame(height: AppSpacing.large)
                     }
-                    .padding()
+                    .padding(.horizontal, AppSpacing.medium)
                 }
-                
-                Spacer()
+                .refreshable {
+                    // Simple refresh for now
+                    viewModel.refreshData()
+                }
             }
         }
         .ignoresSafeArea(.all)
         .navigationBarHidden(true)
+        .sheet(isPresented: $showingScoreEntry) {
+            // Score entry sheet would go here
+            Text("Score Entry - Coming Soon")
+                .padding()
+        }
+        .sheet(isPresented: $showingChatView) {
+            // Chat view would go here  
+            Text("Chat - Coming Soon")
+                .padding()
+        }
+        .onAppear {
+            // Initialize if needed
+            viewModel.initializeMatch()
+        }
     }
     
     // MARK: - Modern Header
@@ -425,6 +407,40 @@ struct LiveMatchView: View {
         }
         .padding(.horizontal, AppSpacing.medium)
         .padding(.bottom, AppSpacing.large)
+    }
+    
+    // MARK: - Course Info Card
+    private var courseInfoCard: some View {
+        VStack(spacing: AppSpacing.medium) {
+            HStack {
+                VStack(alignment: .leading, spacing: AppSpacing.small) {
+                    Text(course.clubName)
+                        .font(AppTypography.titleMedium)
+                        .fontWeight(.semibold)
+                        .foregroundColor(AppColors.textPrimary)
+                    
+                    Text("\(course.city), \(course.state)")
+                        .font(AppTypography.bodyMedium)
+                        .foregroundColor(AppColors.textSecondary)
+                }
+                
+                Spacer()
+                
+                VStack(alignment: .trailing, spacing: AppSpacing.small) {
+                    Text(tee.teeName)
+                        .font(AppTypography.bodyMedium)
+                        .fontWeight(.medium)
+                        .foregroundColor(AppColors.primaryBlue)
+                    
+                    Text("\(tee.totalYards) yards")
+                        .font(AppTypography.bodyMedium)
+                        .foregroundColor(AppColors.textSecondary)
+                }
+            }
+        }
+        .padding(AppSpacing.medium)
+        .background(AppColors.surfacePrimary)
+        .modernCard()
     }
     
     // MARK: - Helper Functions
