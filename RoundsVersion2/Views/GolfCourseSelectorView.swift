@@ -307,19 +307,24 @@ struct GolfCourseSelectorView: View {
         .fullScreenCover(item: $fullScreenCover)
         .onAppear {
             print("🎯 GolfCourseSelectorView appeared. Courses count: \(viewModel.courses.count), isLoading: \(viewModel.isLoading), hasAttemptedLoad: \(hasAttemptedInitialLoad)")
+            
+            // Backup: If courses still aren't loaded when view appears, trigger loading
+            if viewModel.courses.isEmpty && !viewModel.isLoading {
+                print("🎯 GolfCourseSelectorView: Backup loading triggered on appear")
+                Task {
+                    await viewModel.ensureCoursesLoaded()
+                }
+            }
         }
         .task {
-            // The ViewModel now handles loading via auth state listener
-            // But we can still trigger a manual load if needed
+            // Ensure courses are loaded immediately when user navigates to this screen
             if !hasAttemptedInitialLoad {
                 print("🎯 GolfCourseSelectorView: Checking if manual load needed...")
                 hasAttemptedInitialLoad = true
                 
-                // Only load manually if auth listener hasn't triggered yet
-                if viewModel.courses.isEmpty && !viewModel.isLoading {
-                    print("🎯 GolfCourseSelectorView: Triggering manual load...")
-                    await viewModel.loadCourses()
-                }
+                // Use the new ensureCoursesLoaded function for immediate loading
+                await viewModel.ensureCoursesLoaded()
+                
                 print("🎯 GolfCourseSelectorView: Initial setup completed")
             } else {
                 print("🎯 GolfCourseSelectorView: Initial load already attempted, skipping")

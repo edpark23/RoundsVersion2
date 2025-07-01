@@ -14,11 +14,20 @@ class GolfCourseSelectorViewModel: ObservableObject {
     private let pageSize = 5 // Smaller batch size to prevent message too large errors
     private var lastDocument: DocumentSnapshot?
     private var authStateListener: AuthStateDidChangeListenerHandle?
+    private var isAppStartup = true // Track if this is during app startup
     
     init() {
         // Initialize with clean state
         print("🏌️ GolfCourseSelectorViewModel initialized")
         setupAuthListener()
+        
+        // Mark as no longer startup after a brief delay
+        Task {
+            try? await Task.sleep(nanoseconds: 3_000_000_000) // 3s
+            await MainActor.run {
+                isAppStartup = false
+            }
+        }
     }
     
     deinit {
@@ -31,13 +40,17 @@ class GolfCourseSelectorViewModel: ObservableObject {
         authStateListener = Auth.auth().addStateDidChangeListener { [weak self] _, user in
             Task { @MainActor in
                 if user != nil {
-                    print("🔐 Auth state changed - user authenticated, scheduling delayed course loading")
-                    // Delay auto-loading to prevent Firebase cascade
-                    try? await Task.sleep(nanoseconds: 2_000_000_000) // 2s delay
+                    print("🔐 Auth state changed - user authenticated")
                     
-                    // Only load if we don't have courses already and view is still active
+                    // Only delay during app startup to prevent Firebase cascade
+                    if self?.isAppStartup == true {
+                        print("📱 App startup detected - delaying course loading")
+                        try? await Task.sleep(nanoseconds: 2_000_000_000) // 2s delay only during startup
+                    }
+                    
+                    // Load courses if we don't have any and aren't already loading
                     if self?.courses.isEmpty == true && self?.isLoading == false {
-                        print("🏌️ Starting delayed course loading")
+                        print("🏌️ Loading courses")
                         await self?.loadCourses()
                     }
                 } else {
@@ -379,5 +392,13 @@ class GolfCourseSelectorViewModel: ObservableObject {
         
         // Here we would typically integrate with Firebase
         // For demo purposes, we'll just log the details
+    }
+    
+    // Manual load function for immediate loading when user navigates to screen
+    func ensureCoursesLoaded() async {
+        guard courses.isEmpty && !isLoading else { return }
+        
+        print("🏌️ Manual course loading triggered")
+        await loadCourses()
     }
 } 
