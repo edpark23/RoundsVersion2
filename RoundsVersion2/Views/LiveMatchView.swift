@@ -26,67 +26,133 @@ struct LiveMatchView: View {
     }
     
     var body: some View {
-        Text("Live Match View - Phase 4")
-            .font(.title)
+        ZStack {
+            // Main background
+            Color(red: 0.95, green: 0.95, blue: 0.97).ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                // Navy blue header - EXACT copy from working GolfCourseSelectorView
+                ZStack {
+                    Color(red: 0.0, green: 75/255, blue: 143/255).ignoresSafeArea(edges: .top)
+                    
+                    VStack(spacing: 0) {
+                        // Status bar space
+                        Color.clear.frame(height: 44)
+                        
+                        // Navigation bar
+                        HStack {
+                            Button(action: {
+                                dismiss()
+                            }) {
+                                Image(systemName: "chevron.left")
+                                    .foregroundColor(.white)
+                                    .font(.system(size: 20, weight: .semibold))
+                            }
+                            
+                            Spacer()
+                            
+                            Text("LIVE MATCH")
+                                .foregroundColor(.white)
+                                .font(.system(size: 20, weight: .bold))
+                                .tracking(0.5)
+                            
+                            Spacer()
+                            
+                            Button(action: {
+                                // Menu action
+                            }) {
+                                Image(systemName: "line.horizontal.3")
+                                    .foregroundColor(.white)
+                                    .font(.system(size: 20))
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 10)
+                    }
+                }
+                .frame(height: 90)
+                
+                // Main content
+                ScrollView {
+                    VStack(spacing: 16) {
+                        // Course info
+                        Text(course.clubName)
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .padding()
+                        
+                        // Placeholder content for now
+                        Text("Live Match Content - Phase 4")
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
+                }
+                
+                Spacer()
+            }
+        }
+        .ignoresSafeArea(.all)
+        .navigationBarHidden(true)
     }
     
     // MARK: - Modern Header
     private var modernHeader: some View {
-        VStack(spacing: 0) {
-            // Status bar area
-            AppColors.primaryBlue
-                .frame(height: 50)
-                .ignoresSafeArea(edges: .top)
+        ZStack {
+            Color(red: 0.0, green: 75/255, blue: 143/255).ignoresSafeArea(edges: .top)
             
-            // Header content
-            HStack {
-                // Back button with haptic feedback
-                Button(action: {
-                    dismiss()
-                }) {
-                    Image(systemName: "chevron.left")
-                        .font(.title2)
-                        .foregroundColor(.white)
-                }
-                .interactiveButton()
+            VStack(spacing: 0) {
+                // Status bar space
+                Color.clear.frame(height: 44)
                 
-                Spacer()
-                
-                // Live match indicator
-                VStack(spacing: 4) {
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(AppColors.success)
-                            .frame(width: 8, height: 8)
-                            .animation(AppAnimations.quickSpring.repeatForever(), value: viewModel.isLiveUpdateActive)
-                        
-                        Text("LIVE MATCH")
-                            .font(AppTypography.captionLarge)
-                            .fontWeight(.bold)
+                // Navigation bar
+                HStack {
+                    Button(action: {
+                        dismiss()
+                    }) {
+                        Image(systemName: "chevron.left")
                             .foregroundColor(.white)
+                            .font(.system(size: 20, weight: .semibold))
+                    }
+                    .interactiveButton()
+                    
+                    Spacer()
+                    
+                    // Live match indicator
+                    VStack(spacing: 4) {
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(AppColors.success)
+                                .frame(width: 8, height: 8)
+                                .animation(AppAnimations.quickSpring.repeatForever(), value: viewModel.isLiveUpdateActive)
+                            
+                            Text("LIVE MATCH")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                        
+                        Text(viewModel.formattedMatchTime)
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.8))
                     }
                     
-                    Text(viewModel.formattedMatchTime)
-                        .font(AppTypography.caption)
-                        .foregroundColor(.white.opacity(0.8))
+                    Spacer()
+                    
+                    // Settings menu
+                    Button(action: {
+                        // Show settings
+                    }) {
+                        Image(systemName: "ellipsis")
+                            .foregroundColor(.white)
+                            .font(.system(size: 20))
+                    }
+                    .interactiveButton()
                 }
-                
-                Spacer()
-                
-                // Settings menu
-                Button(action: {
-                    // Show settings
-                }) {
-                    Image(systemName: "ellipsis")
-                        .font(.title2)
-                        .foregroundColor(.white)
-                }
-                .interactiveButton()
+                .padding(.horizontal, 16)
+                .padding(.bottom, 10)
             }
-            .padding(.horizontal, AppSpacing.medium)
-            .padding(.vertical, AppSpacing.small)
-            .background(AppColors.primaryBlue)
         }
+        .frame(height: 90)
         .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
     }
     

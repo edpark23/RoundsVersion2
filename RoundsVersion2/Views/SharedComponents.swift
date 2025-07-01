@@ -318,61 +318,47 @@ struct RoundedCorner: Shape {
     }
 }
 
-// MARK: - Reusable Header Component
+// MARK: - Uniform Header Component
 struct UniformHeader: View {
     let title: String
     let onBackTapped: () -> Void
-    let onMenuTapped: (() -> Void)?
-    
-    init(title: String, onBackTapped: @escaping () -> Void, onMenuTapped: (() -> Void)? = nil) {
-        self.title = title
-        self.onBackTapped = onBackTapped
-        self.onMenuTapped = onMenuTapped
-    }
+    let onMenuTapped: () -> Void
     
     var body: some View {
-        ZStack {
-            Color(red: 0.0, green: 75/255, blue: 143/255).ignoresSafeArea(edges: .top)
+        VStack(spacing: 0) {
+            // Status bar spacer
+            Color(red: 0/255, green: 75/255, blue: 143/255)
+                .frame(height: 44)
+                .ignoresSafeArea(edges: .top)
             
-            VStack(spacing: 0) {
-                // Status bar space - adjusted to match other views
-                Color.clear.frame(height: 44)
-                
-                // Navigation bar with proper vertical centering
-                HStack {
-                    Button(action: onBackTapped) {
-                        Image(systemName: "chevron.left")
-                            .foregroundColor(.white)
-                            .font(.system(size: 20, weight: .semibold))
-                    }
-                    
-                    Spacer()
-                    
-                    Text(title)
+            // Header content
+            HStack {
+                // Back button
+                Button(action: onBackTapped) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 20, weight: .semibold))
                         .foregroundColor(.white)
-                        .font(.system(size: 20, weight: .bold))
-                        .tracking(0.5)
-                    
-                    Spacer()
-                    
-                    if let onMenuTapped = onMenuTapped {
-                        Button(action: onMenuTapped) {
-                            Image(systemName: "line.3.horizontal")
-                                .foregroundColor(.white)
-                                .font(.system(size: 20))
-                        }
-                    } else {
-                        // Invisible spacer to keep text centered
-                        Image(systemName: "line.3.horizontal")
-                            .foregroundColor(.clear)
-                            .font(.system(size: 20))
-                    }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 16)
-                .frame(height: 56) // Fixed height for navigation area
+                
+                Spacer()
+                
+                // Title
+                Text(title)
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(.white)
+                
+                Spacer()
+                
+                // Menu button
+                Button(action: onMenuTapped) {
+                    Image(systemName: "line.horizontal.3")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(.white)
+                }
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .background(Color(red: 0/255, green: 75/255, blue: 143/255))
         }
-        .frame(height: 100) // Reduced total height to match other views
     }
 } 

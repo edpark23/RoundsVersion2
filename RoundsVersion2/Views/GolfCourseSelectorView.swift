@@ -64,12 +64,46 @@ struct GolfCourseSelectorView: View {
             Color(red: 0.95, green: 0.95, blue: 0.97).ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Uniform header
-                UniformHeader(
-                    title: "SELECT COURSE",
-                    onBackTapped: { dismiss() },
-                    onMenuTapped: { /* Profile action */ }
-                )
+                // Navy blue header
+                ZStack {
+                    Color(red: 0.0, green: 75/255, blue: 143/255).ignoresSafeArea(edges: .top)
+                    
+                    VStack(spacing: 0) {
+                        // Status bar space
+                        Color.clear.frame(height: 44)
+                        
+                        // Navigation bar
+                        HStack {
+                            Button(action: {
+                                dismiss()
+                            }) {
+                                Image(systemName: "chevron.left")
+                                    .foregroundColor(.white)
+                                    .font(.system(size: 20, weight: .semibold))
+                            }
+                            
+                            Spacer()
+                            
+                            Text("SELECT COURSE")
+                                .foregroundColor(.white)
+                                .font(.system(size: 20, weight: .bold))
+                                .tracking(0.5)
+                            
+                            Spacer()
+                            
+                            Button(action: {
+                                // Profile action
+                            }) {
+                                Image(systemName: "person.crop.circle")
+                                    .foregroundColor(.white)
+                                    .font(.system(size: 20))
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 10)
+                    }
+                }
+                .frame(height: 90)
                 
                 // Search bar
                 HStack(spacing: 8) {
@@ -199,41 +233,37 @@ struct GolfCourseSelectorView: View {
                                                 .tint(.white)
                                         }
                                         Text(viewModel.isLoading ? "Loading..." : "Load More Courses")
-                                            .font(.system(size: 16, weight: .medium))
+                                            .font(.system(size: 14, weight: .medium))
                                             .foregroundColor(.white)
                                     }
                                     .frame(maxWidth: .infinity)
-                                    .frame(height: 44)
-                                    .background(Color(red: 0.0, green: 75/255, blue: 143/255))
-                                    .cornerRadius(22)
+                                    .frame(height: 36)
+                                    .background(Color(red: 0.0, green: 75/255, blue: 143/255).opacity(0.7))
+                                    .cornerRadius(18)
                                 }
                                 .disabled(viewModel.isLoading)
-                                .padding(.horizontal, 16)
-                                .padding(.top, 8)
-                                .padding(.bottom, 16) // Additional padding to prevent overlap
+                                .padding(.horizontal, 32)
+                                .padding(.top, 16)
+                                .padding(.bottom, 20)
                             }
                         }
                     }
                     .padding(.top, 16)
-                    .padding(.bottom, viewModel.hasMoreCourses ? 140 : 90) // Extra space when Load More button is present
+                    .padding(.bottom, 120) // Increased space for the continue button
                 }
                 
                 Spacer()
             }
             
-            // Continue button fixed at bottom - always in front
+            // Continue button fixed at bottom with enhanced visibility
             VStack {
                 Spacer()
                 
-                // Background overlay to ensure button stands out
+                // Background overlay to ensure button visibility
                 VStack(spacing: 0) {
-                    // Gradient fade from transparent to background color
+                    // Gradient fade overlay
                     LinearGradient(
-                        gradient: Gradient(colors: [
-                            Color(red: 0.95, green: 0.95, blue: 0.97).opacity(0),
-                            Color(red: 0.95, green: 0.95, blue: 0.97).opacity(0.8),
-                            Color(red: 0.95, green: 0.95, blue: 0.97)
-                        ]),
+                        colors: [Color.clear, Color(red: 0.95, green: 0.95, blue: 0.97).opacity(0.8), Color(red: 0.95, green: 0.95, blue: 0.97)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
@@ -241,31 +271,34 @@ struct GolfCourseSelectorView: View {
                     
                     // Solid background for button area
                     Color(red: 0.95, green: 0.95, blue: 0.97)
-                        .frame(height: 90)
+                        .frame(height: 80)
                 }
                 .overlay(
+                    // Continue button
                     Button(action: {
                         if selectedCourse != nil {
                             showingTeeSelection = true
                         }
                     }) {
                         Text("CONTINUE")
-                            .font(.system(size: 16, weight: .bold))
+                            .font(.system(size: 18, weight: .bold))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
-                            .frame(height: 50)
+                            .frame(height: 56)
                             .background(
                                 Capsule()
                                     .fill(Color(red: 0.0, green: 75/255, blue: 143/255))
+                                    .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
                             )
                             .padding(.horizontal, 16)
                     }
                     .disabled(selectedCourse == nil)
-                    .opacity(selectedCourse == nil ? 0.7 : 1.0),
-                    alignment: .center
+                    .opacity(selectedCourse == nil ? 0.7 : 1.0)
+                    .scaleEffect(selectedCourse != nil ? 1.0 : 0.95)
+                    .animation(.easeInOut(duration: 0.2), value: selectedCourse != nil)
+                    .padding(.bottom, 20)
                 )
             }
-            .zIndex(1000) // Ensure this is always on top
         }
         .navigationBarHidden(true)
         .navigationDestination(isPresented: $showingTeeSelection) {

@@ -6,12 +6,7 @@ struct HomeView: View {
     @EnvironmentObject private var mainViewModel: MainViewModel
     @State private var showingNewMatch = false
     @State private var showingMatchmaking = false
-    @State private var selectedTab: Tab = .solo
     @State private var animateStats = false
-    
-    enum Tab {
-        case solo, duos
-    }
     
     var body: some View {
         NavigationView {
@@ -21,15 +16,12 @@ struct HomeView: View {
                     .ignoresSafeArea()
                 
                 ScrollView {
-                    LazyVStack(spacing: AppSpacing.medium) {
+                    LazyVStack(spacing: AppSpacing.large) {
                         // Modern header with welcome message
                         modernHeaderView
                         
                         // Quick stats dashboard
                         quickStatsView
-                        
-                        // Game mode selector (improved)
-                        modernGameModeSelector
                         
                         // Action buttons section (moved up for better UX)
                         actionButtonsSection
@@ -44,7 +36,7 @@ struct HomeView: View {
                         recentAchievementsView
                     }
                     .padding(.horizontal, AppSpacing.medium)
-                    .padding(.top, 4)
+                    .padding(.top, AppSpacing.small)
                 }
                 .refreshable {
                     await refreshData()
@@ -163,34 +155,7 @@ struct HomeView: View {
         }
     }
     
-    // MARK: - Modern Game Mode Selector
-    private var modernGameModeSelector: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.small) {
-            Text("Game Mode")
-                .font(AppTypography.titleMedium)
-                .foregroundColor(AppColors.textPrimary)
-                .fontWeight(.semibold)
-            
-            HStack(spacing: AppSpacing.small) {
-                GameModeButton(
-                    title: "Solo",
-                    icon: "person.fill",
-                    isSelected: selectedTab == .solo,
-                    action: { selectedTab = .solo }
-                )
-                
-                GameModeButton(
-                    title: "Duos",
-                    icon: "person.2.fill",
-                    isSelected: selectedTab == .duos,
-                    action: { selectedTab = .duos }
-                )
-            }
-        }
-        .padding(AppSpacing.medium)
-        .background(AppColors.surfacePrimary)
-        .modernCard()
-    }
+
     
     // MARK: - Action Buttons Section
     private var actionButtonsSection: some View {
@@ -235,8 +200,6 @@ struct HomeView: View {
                 // Quick start with last settings
                 print("Long press detected - quick start with last settings")
             }
-            
-
         }
     }
     
@@ -620,6 +583,11 @@ struct MatchCard: View {
     
     var body: some View {
         HStack(spacing: AppSpacing.medium) {
+            // Match status indicator
+            Circle()
+                .fill(AppColors.success)
+                .frame(width: 12, height: 12)
+            
             VStack(alignment: .leading, spacing: 4) {
                 Text(match.courseName)
                     .font(AppTypography.bodyMedium)

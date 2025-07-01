@@ -195,11 +195,45 @@ struct RoundActiveView: View {
     
     // MARK: - Modern Header
     private var modernHeader: some View {
-        UniformHeader(
-            title: "LIVE MATCH",
-            onBackTapped: { dismiss() },
-            onMenuTapped: { /* Quick stats or settings */ }
-        )
+        ZStack {
+            Color(red: 0.0, green: 75/255, blue: 143/255).ignoresSafeArea(edges: .top)
+            
+            VStack(spacing: 0) {
+                // Status bar space
+                Color.clear.frame(height: 44)
+                
+                // Navigation bar
+                HStack {
+                    Button(action: {
+                        dismiss()
+                    }) {
+                        Image(systemName: "chevron.left")
+                            .foregroundColor(.white)
+                            .font(.system(size: 20, weight: .semibold))
+                    }
+                    
+                    Spacer()
+                    
+                    Text("LIVE MATCH")
+                        .foregroundColor(.white)
+                        .font(.system(size: 20, weight: .bold))
+                        .tracking(0.5)
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        // Quick stats or settings
+                    }) {
+                        Image(systemName: "line.horizontal.3")
+                            .foregroundColor(.white)
+                            .font(.system(size: 20))
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 10)
+            }
+        }
+        .frame(height: 90)
     }
     
     // MARK: - Live Progress Banner
@@ -1249,7 +1283,7 @@ struct RoundActiveView: View {
                 "statistics.doubleBogeys": FieldValue.increment(Int64(stats["doubleBogeys"] as? Int ?? 0)),
                 "statistics.lastPlayed": FieldValue.serverTimestamp(),
                 "statistics.bestScore": totalScore, // This should be compared with existing best
-                "statistics.averageScore": stats["averageScore"] as? Double ?? 0.0
+                "statistics.averageScore": stats["averageScore"] as? Double ?? 0.0 as Double
             ])
             
             // Add to player's match history
