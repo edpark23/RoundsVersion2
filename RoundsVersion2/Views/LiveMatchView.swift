@@ -55,8 +55,8 @@ struct LiveMatchView: View {
                     .padding(.horizontal, AppSpacing.medium)
                 }
                 .refreshable {
-                    // Simple refresh for now
-                    viewModel.refreshData()
+                    // Use actual method from LiveMatchViewModel
+                    await viewModel.refreshMatchData()
                 }
             }
         }
@@ -73,8 +73,10 @@ struct LiveMatchView: View {
                 .padding()
         }
         .onAppear {
-            // Initialize if needed
-            viewModel.initializeMatch()
+            // Use actual method from LiveMatchViewModel
+            Task {
+                await viewModel.startLiveMatch()
+            }
         }
     }
     
