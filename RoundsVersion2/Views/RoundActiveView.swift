@@ -24,6 +24,7 @@ struct RoundActiveView: View {
     @State private var tempScore: String = ""
     @State private var selectedPlayer = 0 // 0 = current user, 1 = opponent
     @State private var showingNumberPad = false
+    @State private var isSyncingScore = false
     
     // Round completion state
     @State private var showingCompletionPrompt = false
@@ -190,6 +191,17 @@ struct RoundActiveView: View {
             }
         } message: {
             Text("Your scorecard has been submitted successfully!")
+        }
+        .alert("Score Sync Error", isPresented: .constant(scoreViewModel.syncError != nil)) {
+            Button("Retry") {
+                // Clear the error to allow retry
+                scoreViewModel.syncError = nil
+            }
+            Button("OK", role: .cancel) {
+                scoreViewModel.syncError = nil
+            }
+        } message: {
+            Text(scoreViewModel.syncError ?? "")
         }
     }
     
@@ -909,11 +921,20 @@ struct RoundActiveView: View {
                 }
                 .secondaryButton()
                 
-                Button("Save Score") {
+                Button(action: {
                     saveScore()
+                }) {
+                    HStack {
+                        if isSyncingScore {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                                .foregroundColor(.white)
+                        }
+                        Text(isSyncingScore ? "Syncing..." : "Save Score")
+                    }
                 }
                 .primaryButton()
-                .disabled(tempScore.isEmpty || Int(tempScore) == nil)
+                .disabled(tempScore.isEmpty || Int(tempScore) == nil || isSyncingScore)
             }
             .padding(.top)
         }
@@ -1039,35 +1060,46 @@ struct RoundActiveView: View {
         
         // Only allow current user to edit their own scores
         if selectedPlayer == 0 && isCurrentUser(playerIndex: 0) {
-            scoreViewModel.updateScore(hole: currentHole, score: score, isCurrentUser: true)
+            Task {
+                // Show loading state
+                await MainActor.run {
+                    isSyncingScore = true
+                }
+                
+                // Wait for score sync to complete before proceeding with UI updates
+                await scoreViewModel.updateScore(hole: currentHole, score: score, isCurrentUser: true)
+                
+                await MainActor.run {
+                    isSyncingScore = false
+                    tempScore = ""
+                    showingNumberPad = false
+                    
+                    // Check if this completed the round (all 18 holes have scores)
+                    let wasRoundJustCompleted = !isRoundComplete && isCurrentRoundComplete
+                    
+                    // Update completion status
+                    checkRoundCompletion()
+                    
+                    // If we just completed the round, show completion prompt immediately
+                    if wasRoundJustCompleted {
+                        showingCompletionPrompt = true
+                        return // Don't advance holes when round is complete
+                    }
+                    
+                    // Auto-advance to next hole only if not on the last hole
+                    if currentHole < 18 {
+                        withAnimation(.spring()) {
+                            currentHole += 1
+                        }
+                    }
+                }
+            }
         } else {
             // This shouldn't happen with our UI restrictions, but safety check
             print("Attempted to edit opponent score - not allowed")
             tempScore = ""
             showingNumberPad = false
             return
-        }
-        
-        tempScore = ""
-        showingNumberPad = false
-        
-        // Check if this completed the round (all 18 holes have scores)
-        let wasRoundJustCompleted = !isRoundComplete && isCurrentRoundComplete
-        
-        // Update completion status
-        checkRoundCompletion()
-        
-        // If we just completed the round, show completion prompt immediately
-        if wasRoundJustCompleted {
-            showingCompletionPrompt = true
-            return // Don't advance holes when round is complete
-        }
-        
-        // Auto-advance to next hole only if not on the last hole
-        if currentHole < 18 {
-            withAnimation(.spring()) {
-                currentHole += 1
-            }
         }
     }
     

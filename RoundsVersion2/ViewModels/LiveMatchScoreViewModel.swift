@@ -116,16 +116,21 @@ class LiveMatchScoreViewModel: ObservableObject {
     // MARK: - Public Score Management Interface
     
     /// Updates a score for the current player (this triggers all sync logic)
-    func updateScore(hole: Int, score: Int, isCurrentUser: Bool = true) {
+    func updateScore(hole: Int, score: Int, isCurrentUser: Bool = true) async {
         guard hole > 0 && hole <= 18 else { return }
         
         if isCurrentUser {
-            Task {
-                await scoreSyncService.updatePlayerScore(hole: hole, score: score)
-            }
+            await scoreSyncService.updatePlayerScore(hole: hole, score: score)
         } else {
             // Only allow current user to update their own scores
             print("Cannot update opponent's score")
+        }
+    }
+    
+    /// Legacy synchronous wrapper for backward compatibility
+    func updateScoreSync(hole: Int, score: Int, isCurrentUser: Bool = true) {
+        Task {
+            await updateScore(hole: hole, score: score, isCurrentUser: isCurrentUser)
         }
     }
     
