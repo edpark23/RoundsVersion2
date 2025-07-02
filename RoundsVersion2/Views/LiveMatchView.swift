@@ -98,46 +98,43 @@ struct LiveMatchView: View {
                             .foregroundColor(.white)
                             .font(.system(size: 20, weight: .semibold))
                     }
-                    .interactiveButton()
                     
                     Spacer()
                     
-                    // Live match indicator
-                    VStack(spacing: 4) {
+                    VStack(spacing: 2) {
                         HStack(spacing: 6) {
                             Circle()
-                                .fill(AppColors.success)
+                                .fill(Color.red)
                                 .frame(width: 8, height: 8)
-                                .animation(AppAnimations.quickSpring.repeatForever(), value: viewModel.isLiveUpdateActive)
+                                .scaleEffect(viewModel.isLiveUpdateActive ? 1.2 : 1.0)
+                                .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: viewModel.isLiveUpdateActive)
                             
                             Text("LIVE MATCH")
-                                .font(.system(size: 16, weight: .bold))
                                 .foregroundColor(.white)
+                                .font(.system(size: 20, weight: .bold))
+                                .tracking(0.5)
                         }
                         
                         Text(viewModel.formattedMatchTime)
-                            .font(.system(size: 12))
                             .foregroundColor(.white.opacity(0.8))
+                            .font(.system(size: 12, weight: .medium))
                     }
                     
                     Spacer()
                     
-                    // Settings menu
                     Button(action: {
-                        // Show settings
+                        // Menu action
                     }) {
                         Image(systemName: "ellipsis")
                             .foregroundColor(.white)
                             .font(.system(size: 20))
                     }
-                    .interactiveButton()
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 10)
             }
         }
         .frame(height: 90)
-        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
     }
     
     // MARK: - Live Scorecard
