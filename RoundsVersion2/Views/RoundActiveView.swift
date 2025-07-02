@@ -215,18 +215,10 @@ struct RoundActiveView: View {
                     Spacer()
                     
                     VStack(spacing: 2) {
-                        HStack(spacing: 6) {
-                            Circle()
-                                .fill(Color.red)
-                                .frame(width: 8, height: 8)
-                                .scaleEffect(animateTimer ? 1.2 : 1.0)
-                                .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: animateTimer)
-                            
-                            Text("LIVE MATCH")
-                                .foregroundColor(.white)
-                                .font(.system(size: 20, weight: .bold))
-                                .tracking(0.5)
-                        }
+                        Text("LIVE MATCH")
+                            .foregroundColor(.white)
+                            .font(.system(size: 20, weight: .bold))
+                            .tracking(0.5)
                         
                         Text(formattedTime(elapsedTime))
                             .foregroundColor(.white.opacity(0.8))
@@ -267,12 +259,6 @@ struct RoundActiveView: View {
                 }
             } else {
                 HStack(spacing: AppSpacing.small) {
-                    Circle()
-                        .fill(AppColors.success)
-                        .frame(width: 8, height: 8)
-                        .scaleEffect(animateTimer ? 1.2 : 1.0)
-                        .animation(AppAnimations.liveUpdate.repeatForever(), value: animateTimer)
-                    
                     Text(formattedTime(elapsedTime))
                         .font(AppTypography.bodyMedium)
                         .fontWeight(.semibold)
