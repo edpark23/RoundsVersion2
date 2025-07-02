@@ -81,7 +81,7 @@ struct RoundActiveView: View {
             Color(red: 0.95, green: 0.95, blue: 0.97).ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Enhanced header
+                // Modern header
                 modernHeader
                 
                 // Live round progress banner
@@ -195,11 +195,59 @@ struct RoundActiveView: View {
     
     // MARK: - Modern Header
     private var modernHeader: some View {
-        UniformHeader(
-            title: "LIVE MATCH",
-            onBackTapped: { dismiss() },
-            onMenuTapped: { /* Quick stats or settings */ }
-        )
+        ZStack {
+            Color(red: 0.0, green: 75/255, blue: 143/255).ignoresSafeArea(edges: .top)
+            
+            VStack(spacing: 0) {
+                // Status bar space
+                Color.clear.frame(height: 44)
+                
+                // Navigation bar
+                HStack {
+                    Button(action: {
+                        dismiss()
+                    }) {
+                        Image(systemName: "chevron.left")
+                            .foregroundColor(.white)
+                            .font(.system(size: 20, weight: .semibold))
+                    }
+                    
+                    Spacer()
+                    
+                    VStack(spacing: 2) {
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(Color.red)
+                                .frame(width: 8, height: 8)
+                                .scaleEffect(animateTimer ? 1.2 : 1.0)
+                                .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: animateTimer)
+                            
+                            Text("LIVE MATCH")
+                                .foregroundColor(.white)
+                                .font(.system(size: 20, weight: .bold))
+                                .tracking(0.5)
+                        }
+                        
+                        Text(formattedTime(elapsedTime))
+                            .foregroundColor(.white.opacity(0.8))
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        // Menu action
+                    }) {
+                        Image(systemName: "ellipsis")
+                            .foregroundColor(.white)
+                            .font(.system(size: 20))
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 10)
+            }
+        }
+        .frame(height: 90)
     }
     
     // MARK: - Live Progress Banner
